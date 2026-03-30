@@ -161,10 +161,7 @@
           </div>
           <input type="range" id="bg-opacity" min="0" max="100" value="30" oninput="updateBgPreview()">
           <label>背景不透明度: <span id="opacity-value">30%</span></label>
-          <div class="bg-buttons">
-            <button class="btn-small" onclick="applyBg()">应用URL背景</button>
-            <button class="btn-small btn-danger" onclick="clearBg()">清除背景</button>
-          </div>
+          <button class="btn-primary btn-save-bg" onclick="saveBackgroundSettings()">💾 保存背景设置</button>
         </div>
 
         <!-- 组件透明度设置 -->
@@ -173,6 +170,7 @@
           <label>卡片透明度: <span id="card-opacity-value">100%</span></label>
           <input type="range" id="card-opacity" min="0" max="100" value="100" oninput="updateCardOpacity()">
           <p class="setting-tip">调低透明度可让背景图片透出来</p>
+          <button class="btn-primary btn-save-bg" onclick="saveBackgroundSettings()">💾 保存设置</button>
         </div>
 
         <!-- 管理员设置 -->
@@ -277,6 +275,8 @@
       
       // 应用卡片透明度
       updateCardOpacity(config.cardOpacity);
+      document.getElementById('card-opacity').value = config.cardOpacity;
+      document.getElementById('card-opacity-value').textContent = config.cardOpacity + '%';
 
       // 加载云端设置（背景同步）
       await fetchCloudSettings();
@@ -289,6 +289,10 @@
       } else if (config.bgImage) {
         applyBackground(config.bgImage, config.bgOpacity);
       }
+      
+      // 更新UI显示
+      document.getElementById('bg-opacity').value = config.bgOpacity;
+      document.getElementById('opacity-value').textContent = config.bgOpacity + '%';
 
       // 初始化日期
       document.getElementById('watch-date').valueAsDate = new Date();
@@ -323,13 +327,24 @@
     // ========== 云端设置 ==========
     async function fetchCloudSettings() {
       try {
+        console.log('Fetching cloud settings...');
         const response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
-          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+          headers: { 
+            'apikey': SUPABASE_KEY, 
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json'
+          }
         });
+        
         if (response.ok) {
           const data = await response.json();
-          if (data.length > 0 && data[0].value) {
-            cloudSettings = { ...cloudSettings, ...JSON.parse(data[0].value) };
+          console.log('Cloud settings response:', data);
+          
+          if (data && data.length > 0 && data[0].value) {
+            const settings = JSON.parse(data[0].value);
+            console.log('Parsed cloud settings:', settings);
+            cloudSettings = { ...cloudSettings, ...settings };
+            console.log('Updated cloudSettings:', cloudSettings);
           }
         }
       } catch (err) {
@@ -345,15 +360,21 @@
           cardOpacity: cloudSettings.cardOpacity
         });
         
-        // 先尝试更新
+        console.log('Saving to cloud:', value);
+        
+        // 先检查是否存在
         let response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
           method: 'GET',
-          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+          headers: { 
+            'apikey': SUPABASE_KEY, 
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json'
+          }
         });
         
         const existing = await response.json();
         
-        if (existing.length > 0) {
+        if (existing && existing.length > 0) {
           // 更新
           await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
             method: 'PATCH',
@@ -364,6 +385,7 @@
             },
             body: JSON.stringify({ value })
           });
+          console.log('Cloud settings updated');
         } else {
           // 创建
           await fetch(SUPABASE_URL + '/rest/v1/settings', {
@@ -376,8 +398,8 @@
             },
             body: JSON.stringify({ key: 'global', value })
           });
+          console.log('Cloud settings created');
         }
-        console.log('Cloud settings saved');
       } catch (err) {
         console.log('Save cloud settings failed:', err);
       }
@@ -438,23 +460,30 @@
       if (value === undefined) {
         value = document.getElementById('card-opacity').value;
       }
+      value = parseInt(value);
+      
       config.cardOpacity = value;
       cloudSettings.cardOpacity = value;
       
       document.getElementById('card-opacity-value').textContent = value + '%';
       document.getElementById('card-opacity').value = value;
       
-      // 应用透明度到卡片
-      document.documentElement.style.setProperty('--card-opacity', value / 100);
+      // 应用透明度到组件（使用 rgba 背景，不带模糊）
+      document.documentElement.style.setProperty('--card-bg-opacity', value / 100);
       
       localStorage.setItem('movie-together-config', JSON.stringify(config));
-      saveCloudSettings();
     }
 
     // ========== 背景图片 ==========
     function updateBgPreview() {
       const opacity = document.getElementById('bg-opacity').value;
       document.getElementById('opacity-value').textContent = opacity + '%';
+      
+      // 实时预览背景
+      const url = document.getElementById('bg-image-url').value;
+      if (url) {
+        applyBackground(url, opacity);
+      }
     }
 
     function handleBgUpload(event) {
@@ -463,15 +492,12 @@
       
       const reader = new FileReader();
       reader.onload = async function(e) {
-        // 保存到本地
         config.bgImage = e.target.result;
         config.bgOpacity = document.getElementById('bg-opacity').value;
         cloudSettings.bgImage = e.target.result;
         cloudSettings.bgOpacity = config.bgOpacity;
         
         applyBackground(config.bgImage, config.bgOpacity);
-        
-        // 保存到本地存储
         localStorage.setItem('movie-together-config', JSON.stringify(config));
         
         // 同步到云端
@@ -482,26 +508,34 @@
       reader.readAsDataURL(file);
     }
 
-    function applyBg() {
+    function saveBackgroundSettings() {
       const url = document.getElementById('bg-image-url').value;
       const opacity = document.getElementById('bg-opacity').value;
+      const cardOpacity = document.getElementById('card-opacity').value;
+      
       if (url) {
         config.bgImage = url;
-        config.bgOpacity = opacity;
         cloudSettings.bgImage = url;
-        cloudSettings.bgOpacity = opacity;
-        
-        applyBackground(url, opacity);
-        localStorage.setItem('movie-together-config', JSON.stringify(config));
-        
-        // 同步到云端
-        saveCloudSettings();
-      } else {
-        alert('请输入图片URL');
       }
+      
+      config.bgOpacity = opacity;
+      cloudSettings.bgOpacity = opacity;
+      cloudSettings.cardOpacity = cardOpacity;
+      
+      applyBackground(cloudSettings.bgImage, cloudSettings.bgOpacity);
+      
+      // 保存到本地
+      localStorage.setItem('movie-together-config', JSON.stringify(config));
+      
+      // 同步到云端
+      saveCloudSettings();
+      
+      alert('设置已保存并同步到云端！\n另一台设备刷新页面即可看到');
     }
 
     function applyBackground(url, opacity) {
+      if (!url) return;
+      
       document.body.style.backgroundImage = `url(${url})`;
       document.body.style.backgroundSize = 'cover';
       document.body.style.backgroundPosition = 'center';
@@ -540,7 +574,6 @@
         return;
       }
       
-      // 创建CSV内容
       const headers = ['电影名称', '观看日期', '时长(分钟)', '类型', '记录人', '添加时间'];
       const rows = movies.map(m => {
         const watchDate = new Date(m.watch_date);
@@ -555,7 +588,6 @@
         ];
       });
       
-      // 转义CSV内容
       const escapeCSV = (str) => {
         if (str === null || str === undefined) return '';
         const s = String(str);
@@ -570,11 +602,9 @@
         ...rows.map(row => row.map(escapeCSV).join(','))
       ].join('\n');
       
-      // 添加BOM以支持中文
       const BOM = '\uFEFF';
       const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
       
-      // 下载文件
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = `观影记录_${new Date().toLocaleDateString('zh-CN')}.csv`;
@@ -818,7 +848,6 @@
       document.getElementById('stat-avg').textContent = movies.length ? Math.round(totalMinutes / movies.length) : 0;
 
       const genreCounts = {};
-      const allGenres = [...defaultGenres, ...customGenres];
       movies.forEach(m => {
         if (m.genre) {
           m.genre.split(',').forEach(g => {
