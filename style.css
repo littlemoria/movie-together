@@ -18,6 +18,7 @@
   --radius: 12px;
   --radius-sm: 8px;
   --border-color: #E0E0E0;
+  --card-opacity: 1;
 }
 
 [data-theme="dark"] {
@@ -98,14 +99,29 @@ body {
   display: block;
 }
 
-/* 首页卡片 */
+/* 页面头部（影单页） */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* 首页卡片 - 支持透明度 */
 .hero-card {
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, var(--card-opacity));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius);
   padding: 32px;
   text-align: center;
   box-shadow: var(--shadow);
   margin-bottom: 24px;
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .hero-card {
+  background: rgba(26, 26, 46, var(--card-opacity));
 }
 
 .watch-count {
@@ -154,7 +170,7 @@ body {
   color: var(--text-light);
 }
 
-/* 电影列表 */
+/* 电影列表 - 支持透明度 */
 .movie-list {
   display: flex;
   flex-direction: column;
@@ -162,7 +178,9 @@ body {
 }
 
 .movie-card {
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, var(--card-opacity));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   padding: 16px;
   box-shadow: var(--shadow);
@@ -172,6 +190,10 @@ body {
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
   border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .movie-card {
+  background: rgba(26, 26, 46, var(--card-opacity));
 }
 
 .movie-card:hover {
@@ -242,15 +264,10 @@ body {
   border-radius: var(--radius-sm);
   font-size: 13px;
   cursor: pointer;
-  transition: transform 0.2s, opacity 0.2s;
 }
 
 .btn-small:hover {
   opacity: 0.9;
-}
-
-.btn-small:active {
-  transform: scale(0.98);
 }
 
 .btn-danger {
@@ -265,16 +282,22 @@ body {
   border-radius: var(--radius);
   font-size: 14px;
   cursor: pointer;
-  transition: opacity 0.2s;
 }
 
-.btn-delete:hover {
-  opacity: 0.9;
+.btn-export {
+  background: var(--success);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  align-self: flex-end;
 }
 
 /* 搜索和筛选 */
 .search-bar {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .search-bar input,
@@ -287,7 +310,6 @@ body {
   outline: none;
   background: var(--card-bg);
   color: var(--text);
-  transition: border-color 0.2s;
 }
 
 .search-bar input:focus,
@@ -296,7 +318,7 @@ body {
 }
 
 .filter-bar {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 /* 成就网格 */
@@ -307,7 +329,9 @@ body {
 }
 
 .achievement-card {
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, var(--card-opacity));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius);
   padding: 20px;
   text-align: center;
@@ -316,6 +340,10 @@ body {
   filter: grayscale(1);
   transition: all 0.3s;
   border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .achievement-card {
+  background: rgba(26, 26, 46, var(--card-opacity));
 }
 
 .achievement-card.unlocked {
@@ -350,12 +378,18 @@ body {
 }
 
 .stat-card {
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, var(--card-opacity));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius);
   padding: 16px;
   text-align: center;
   box-shadow: var(--shadow);
   border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .stat-card {
+  background: rgba(26, 26, 46, var(--card-opacity));
 }
 
 .stat-card h3 {
@@ -371,12 +405,18 @@ body {
 }
 
 .chart-section {
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, var(--card-opacity));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius);
   padding: 20px;
   margin-bottom: 16px;
   box-shadow: var(--shadow);
   border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .chart-section {
+  background: rgba(26, 26, 46, var(--card-opacity));
 }
 
 .chart-section h3 {
@@ -445,7 +485,26 @@ body {
   font-weight: 600;
 }
 
-/* 弹窗 */
+/* 弹窗 - 支持透明度 */
+.modal-content {
+  background: rgba(255, 255, 255, var(--card-opacity));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .modal-content {
+  background: rgba(26, 26, 46, var(--card-opacity));
+}
+
 .modal {
   display: none;
   position: fixed;
@@ -465,18 +524,6 @@ body {
   display: flex;
 }
 
-.modal-content {
-  background: var(--card-bg);
-  border-radius: var(--radius);
-  padding: 24px;
-  width: 100%;
-  max-width: 420px;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
 .close {
   position: absolute;
   top: 16px;
@@ -490,7 +537,6 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: background 0.2s;
 }
 
 .close:hover {
@@ -524,7 +570,6 @@ body {
   outline: none;
   background: var(--bg);
   color: var(--text);
-  transition: border-color 0.2s;
 }
 
 .form-group input:focus,
@@ -550,7 +595,6 @@ body {
   background: var(--bg);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
-  transition: all 0.2s;
 }
 
 .checkbox-group label:has(input:checked) {
@@ -608,6 +652,12 @@ body {
   color: var(--text);
 }
 
+.setting-tip {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 8px;
+}
+
 .theme-toggle {
   display: flex;
   gap: 12px;
@@ -622,7 +672,6 @@ body {
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.2s;
 }
 
 .theme-btn.active,
@@ -694,13 +743,19 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, var(--card-opacity));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   display: flex;
   justify-content: space-around;
   padding: 8px 0;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
   z-index: 100;
   border-top: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .bottom-nav {
+  background: rgba(26, 26, 46, var(--card-opacity));
 }
 
 .nav-item {
@@ -753,5 +808,13 @@ body {
   
   .form-actions .btn-delete {
     order: 2;
+  }
+  
+  .page-header {
+    gap: 8px;
+  }
+  
+  .btn-export {
+    align-self: stretch;
   }
 }
