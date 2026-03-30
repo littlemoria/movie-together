@@ -149,17 +149,17 @@
           <div class="bg-options">
             <div class="bg-option">
               <label>输入图片URL</label>
-              <input type="text" id="bg-image-url" placeholder="https://example.com/image.jpg" oninput="updateBgPreview()">
+              <input type="text" id="bg-image-url" placeholder="https://example.com/image.jpg">
             </div>
             <div class="bg-option">
               <label>或上传本地图片</label>
-              <input type="file" id="bg-file-input" accept="image/*" onchange="handleBgUpload(event)">
+              <input type="file" id="bg-file-input" accept="image/*">
             </div>
           </div>
           <input type="range" id="bg-opacity" min="0" max="100" value="30" oninput="updateBgPreview()">
           <label>背景不透明度: <span id="opacity-value">30%</span></label>
           <div class="bg-buttons">
-            <button class="btn-small" onclick="applyBg()">应用背景</button>
+            <button class="btn-small" onclick="applyBg()">应用URL背景</button>
             <button class="btn-small btn-danger" onclick="clearBg()">清除背景</button>
           </div>
         </div>
@@ -261,6 +261,7 @@
       // 应用背景
       if (config.bgImage) {
         applyBackground(config.bgImage, config.bgOpacity);
+        document.getElementById('bg-opacity').value = config.bgOpacity;
       }
 
       // 初始化日期
@@ -284,6 +285,9 @@
       
       // 绑定表单提交
       document.getElementById('movie-form').onsubmit = handleMovieSubmit;
+      
+      // 绑定背景图片上传 - 关键修复！
+      document.getElementById('bg-file-input').addEventListener('change', handleBgUpload);
 
       // 加载数据
       fetchMovies().then(() => renderHome());
@@ -350,14 +354,20 @@
       const file = event.target.files[0];
       if (!file) return;
       
+      console.log('Uploading file:', file.name);
+      
       const reader = new FileReader();
       reader.onload = function(e) {
+        console.log('File loaded, applying background...');
         // 保存为 data URL
         config.bgImage = e.target.result;
         config.bgOpacity = document.getElementById('bg-opacity').value;
         applyBackground(config.bgImage, config.bgOpacity);
         localStorage.setItem('movie-together-config', JSON.stringify(config));
         alert('背景图片已应用！');
+      };
+      reader.onerror = function() {
+        alert('读取文件失败，请重试');
       };
       reader.readAsDataURL(file);
     }
@@ -370,10 +380,13 @@
         config.bgOpacity = opacity;
         applyBackground(url, opacity);
         localStorage.setItem('movie-together-config', JSON.stringify(config));
+      } else {
+        alert('请输入图片URL');
       }
     }
 
     function applyBackground(url, opacity) {
+      console.log('Applying background:', url.substring(0, 50) + '...');
       document.body.style.backgroundImage = `url(${url})`;
       document.body.style.backgroundSize = 'cover';
       document.body.style.backgroundPosition = 'center';
@@ -388,7 +401,7 @@
       }
       
       const isDark = document.body.getAttribute('data-theme') === 'dark';
-      const bgColor = isDark ? '45,52,54' : '248,249,250';
+      const bgColor = isDark ? '20,20,40' : '248,249,250';
       overlay.style.backgroundColor = `rgba(${bgColor},${opacity/100})`;
     }
 
@@ -399,6 +412,7 @@
       const overlay = document.getElementById('bg-overlay');
       if (overlay) overlay.style.backgroundColor = 'transparent';
       document.getElementById('bg-image-url').value = '';
+      alert('背景已清除');
     }
 
     // ========== 管理员登录 ==========
@@ -408,7 +422,11 @@
         isAdmin = true;
         document.getElementById('login-status').style.display = 'none';
         document.getElementById('logged-in-status').style.display = 'block';
-        alert('登录成功！');
+        alert('登录成功！现在点击电影卡片可以编辑了');
+        
+        // 重新渲染电影列表，使卡片可点击
+        renderHome();
+        renderMovies();
       } else {
         alert('密码错误');
       }
@@ -419,6 +437,10 @@
       document.getElementById('login-status').style.display = 'block';
       document.getElementById('logged-in-status').style.display = 'none';
       document.getElementById('admin-password').value = '';
+      
+      // 重新渲染
+      renderHome();
+      renderMovies();
     }
 
     // ========== Supabase API ==========
@@ -562,16 +584,12 @@
 
     function renderMovieCard(m) {
       const genreHtml = m.genre ? '<span class="movie-badge">' + getGenreNames(m.genre) + '</span>' : '';
-      const clickHandler = isAdmin ? `onclick="editMovie('${m.id}')"` : (isAdmin ? '' : `onclick="showAdminAlert()"`);
-      return '<div class="movie-card"' + (isAdmin ? ' onclick="editMovie(\'' + m.id + '\')"' : '') + '>' +
+      // 所有卡片都可以点击，登录后可以编辑，未登录会提示
+      return '<div class="movie-card" data-id="' + m.id + '">' +
         '<div class="movie-info">' +
         '<div class="movie-title">' + m.movie_name + '</div>' +
         '<div class="movie-meta">' + formatDate(m.watch_date) + ' · ' + (m.duration_minutes || '?') + '分钟' + (m.created_by ? ' · ' + m.created_by : '') + '</div></div>' +
         genreHtml + '</div>';
-    }
-
-    function showAdminAlert() {
-      alert('点击电影卡片可编辑（需先在设置中登录管理员）');
     }
 
     function renderMovies() {
@@ -587,6 +605,31 @@
         container.innerHTML = '<p class="empty-state">没有找到匹配的电影</p>';
       } else {
         container.innerHTML = filtered.map(m => renderMovieCard(m)).join('');
+      }
+      
+      // 重新绑定点击事件（因为HTML是动态生成的）
+      bindMovieCardClicks();
+    }
+
+    // 绑定电影卡片点击事件 - 关键修复！
+    function bindMovieCardClicks() {
+      document.querySelectorAll('.movie-card').forEach(card => {
+        card.onclick = function() {
+          const id = this.getAttribute('data-id');
+          handleMovieCardClick(id);
+        };
+      });
+    }
+
+    function handleMovieCardClick(id) {
+      if (isAdmin) {
+        // 管理员可以编辑
+        const movie = movies.find(m => m.id == id);
+        if (movie) showMovieModal(movie);
+      } else {
+        // 非管理员提示登录
+        alert('点击电影卡片可编辑记录\n\n请先在设置中登录管理员账号\n默认密码：movie2024');
+        showSettings();
       }
     }
 
@@ -656,8 +699,8 @@
           cb.checked = genres.includes(cb.value);
         });
         
-        // 显示删除按钮（仅管理员）
-        deleteBtn.style.display = isAdmin ? 'block' : 'none';
+        // 显示删除按钮
+        deleteBtn.style.display = 'block';
       } else {
         document.getElementById('modal-title').textContent = '添加观影记录';
         document.getElementById('movie-form').reset();
@@ -683,7 +726,7 @@
     }
 
     function editMovie(id) {
-      const movie = movies.find(m => m.id === id);
+      const movie = movies.find(m => m.id == id);
       if (movie) showMovieModal(movie);
     }
 
