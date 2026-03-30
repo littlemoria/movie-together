@@ -1065,3 +1065,89 @@ body {
   color: var(--text-light);
   margin: 4px 0 0;
 }
+
+/* 小图标按钮 */
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.icon-btn:hover {
+  transform: scale(1.1);
+}
+
+.header-buttons {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.music-btn {
+  background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+  color: white;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+}
+
+.settings-btn {
+  background: var(--card-bg);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+}
+
+/* 音乐面板带透明度 */
+.music-panel {
+  --panel-opacity: 1;
+  background: rgba(var(--card-bg-rgb, 255, 255, 255), var(--panel-opacity));
+}
+
+[data-theme="dark"] .music-panel {
+  background: rgba(26, 26, 46, var(--panel-opacity));
+}
+
+/* 类型分布扇形图容器 */
+.genre-chart-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#pie-chart {
+  flex-shrink: 0;
+}
+
+.genre-chart {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* 背景类型选择器 */
+.bg-type-selector {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.bg-type-selector label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.bg-type-selector input[type="radio"] {
+  accent-color: var(--accent);
+}
