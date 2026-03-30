@@ -10,12 +10,12 @@
 <body>
   <div id="app">
     <header class="header">
-      <h1 id="page-title">第 X 次一起看</h1>
-      <p class="subtitle" id="page-subtitle">记录我们的观影时光</p>
-      <div class="header-buttons">
-        <button class="icon-btn music-btn" id="music-btn" onclick="toggleMusicPanel()" title="背景音乐">🎵</button>
-        <button class="icon-btn settings-btn" onclick="showSettings()" title="设置">⚙️</button>
+      <button class="header-btn music-btn" id="music-btn" onclick="toggleMusicPanel()" title="背景音乐">🎵</button>
+      <div class="header-title">
+        <h1 id="page-title">第 X 次一起看</h1>
+        <p class="subtitle" id="page-subtitle">记录我们的观影时光</p>
       </div>
+      <button class="header-btn settings-btn" onclick="showSettings()" title="设置">⚙️</button>
     </header>
 
     <!-- 音乐播放器面板 -->
@@ -290,6 +290,7 @@
     let customGenres = [];
     let currentTrackIndex = -1;
     let musicMuted = true;
+    let musicPaused = true;  // 跟踪音乐是否暂停
     let musicPanelOpen = false;
     let cloudSettings = {
       bgType: 'image',
@@ -511,15 +512,28 @@
     function playTrack(index) {
       const audio = document.getElementById('audio-player');
       
-      if (currentTrackIndex >= 0) {
-        document.getElementById('track-' + currentTrackIndex + '-status').textContent = '▶';
+      // 如果点击的是当前播放的曲目
+      if (currentTrackIndex === index) {
+        if (!audio.paused) {
+          // 暂停
+          audio.pause();
+          musicPaused = true;
+          document.getElementById('track-' + index + '-status').textContent = '▶';
+          updateMusicToggleButton();
+          return;
+        } else {
+          // 恢复播放
+          audio.play().catch(e => console.log('播放失败:', e));
+          musicPaused = false;
+          document.getElementById('track-' + index + '-status').textContent = '⏸';
+          updateMusicToggleButton();
+          return;
+        }
       }
       
-      if (currentTrackIndex === index && !audio.paused) {
-        audio.pause();
-        document.getElementById('track-' + index + '-status').textContent = '▶';
-        updateMusicToggleButton();
-        return;
+      // 切换到新曲目
+      if (currentTrackIndex >= 0) {
+        document.getElementById('track-' + currentTrackIndex + '-status').textContent = '▶';
       }
       
       currentTrackIndex = index;
@@ -528,12 +542,15 @@
       
       if (!musicMuted) {
         audio.play().catch(e => console.log('播放失败:', e));
+        musicPaused = false;
         document.getElementById('track-' + index + '-status').textContent = '⏸';
       } else {
-        document.getElementById('track-' + index + '-status').textContent = '⏸';
+        musicPaused = true;
+        document.getElementById('track-' + index + '-status').textContent = '▶';
       }
       
       audio.volume = musicMuted ? 0 : document.getElementById('volume-slider').value / 100;
+      updateMusicToggleButton();
     }
 
     // 自动播放下一首
@@ -544,21 +561,38 @@
 
     function toggleMusic() {
       const audio = document.getElementById('audio-player');
+      
+      // 如果还没选择歌曲，先播放第一首
+      if (currentTrackIndex === -1) {
+        musicMuted = false;
+        musicPaused = false;
+        playTrack(0);
+        updateMusicToggleButton();
+        return;
+      }
+      
+      // 切换静音状态
       musicMuted = !musicMuted;
       
       if (musicMuted) {
+        // 静音：暂停音乐
         audio.pause();
+        musicPaused = true;
         if (currentTrackIndex >= 0) {
           document.getElementById('track-' + currentTrackIndex + '-status').textContent = '▶';
         }
       } else {
-        if (currentTrackIndex === -1) {
-          playTrack(0);
-        } else {
+        // 取消静音：继续播放
+        if (musicPaused) {
+          // 从暂停状态恢复
           audio.play().catch(e => console.log('播放失败:', e));
-          if (currentTrackIndex >= 0) {
-            document.getElementById('track-' + currentTrackIndex + '-status').textContent = '⏸';
-          }
+          musicPaused = false;
+        } else {
+          // 如果之前没有播放过这首歌，重新播放
+          audio.play().catch(e => console.log('播放失败:', e));
+        }
+        if (currentTrackIndex >= 0) {
+          document.getElementById('track-' + currentTrackIndex + '-status').textContent = '⏸';
         }
       }
       
@@ -572,7 +606,7 @@
 
     function setVolume(value) {
       const audio = document.getElementById('audio-player');
-      if (!musicMuted) {
+      if (!musicMuted && !musicPaused) {
         audio.volume = value / 100;
       }
     }
