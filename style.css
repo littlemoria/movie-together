@@ -919,17 +919,21 @@ body {
   accent-color: var(--accent);
 }
 
-/* 头部按钮组 */
-.header-buttons {
-  position: absolute;
-  top: 16px;
-  right: 16px;
+/* 头部按钮组 - 居中布局 */
+.header {
+  position: relative;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 20px 60px;
 }
 
-.music-btn,
-.settings-btn {
+.header-title {
+  text-align: center;
+}
+
+.header-btn {
+  position: absolute;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -942,22 +946,23 @@ body {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.music-btn {
+.header .music-btn {
+  left: 20px;
   background: linear-gradient(135deg, #6C5CE7, #A29BFE);
   color: white;
-  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+  box-shadow: 0 2px 10px rgba(108, 92, 231, 0.4);
 }
 
-.settings-btn {
+.header .settings-btn {
+  right: 20px;
   background: var(--card-bg);
   color: var(--text);
   box-shadow: var(--shadow);
   border: 1px solid var(--border-color);
 }
 
-.music-btn:hover,
-.settings-btn:hover {
-  transform: scale(1.1);
+.header-btn:hover {
+  transform: scale(1.15);
 }
 
 .music-btn.active {
@@ -969,11 +974,11 @@ body {
   50% { box-shadow: 0 0 0 8px rgba(108, 92, 231, 0); }
 }
 
-/* 音乐面板 */
+/* 音乐面板 - 左边弹出 */
 .music-panel {
   position: fixed;
-  top: 70px;
-  right: 16px;
+  top: 80px;
+  left: 20px;
   width: 280px;
   background: var(--card-bg);
   border-radius: var(--radius);
@@ -981,7 +986,7 @@ body {
   z-index: 1000;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-10px);
+  transform: translateX(-20px);
   transition: all 0.3s ease;
   border: 1px solid var(--border-color);
 }
@@ -989,7 +994,7 @@ body {
 .music-panel.active {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
+  transform: translateX(0);
 }
 
 .music-panel-header {
@@ -1067,44 +1072,6 @@ body {
 }
 
 /* 小图标按钮 */
-.icon-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s;
-}
-
-.icon-btn:hover {
-  transform: scale(1.1);
-}
-
-.header-buttons {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  display: flex;
-  gap: 8px;
-}
-
-.music-btn {
-  background: linear-gradient(135deg, #6C5CE7, #A29BFE);
-  color: white;
-  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
-}
-
-.settings-btn {
-  background: var(--card-bg);
-  color: var(--text);
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border-color);
-}
-
 /* 音乐面板带透明度 */
 .music-panel {
   --panel-opacity: 1;
