@@ -7,7 +7,6 @@
 
 :root {
   --bg: #F8F9FA;
-  --card-bg: #FFFFFF;
   --text: #2D3436;
   --text-light: #636E72;
   --accent: #6C5CE7;
@@ -18,12 +17,11 @@
   --radius: 12px;
   --radius-sm: 8px;
   --border-color: #E0E0E0;
-  --card-opacity: 1;
+  --card-bg-opacity: 1;
 }
 
 [data-theme="dark"] {
   --bg: #0f0f23;
-  --card-bg: #1a1a2e;
   --text: #E8E8E8;
   --text-light: #A0A0A0;
   --accent: #7C6CF7;
@@ -32,6 +30,14 @@
   --danger: #E74C3C;
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   --border-color: #2D2D4A;
+}
+
+/* 卡片背景颜色（带透明度）*/
+.card-bg-light {
+  background: rgba(255, 255, 255, var(--card-bg-opacity));
+}
+.card-bg-dark {
+  background: rgba(26, 26, 46, var(--card-bg-opacity));
 }
 
 body {
@@ -99,7 +105,7 @@ body {
   display: block;
 }
 
-/* 页面头部（影单页） */
+/* 页面头部 */
 .page-header {
   display: flex;
   flex-direction: column;
@@ -107,21 +113,20 @@ body {
   margin-bottom: 16px;
 }
 
-/* 首页卡片 - 支持透明度 */
+/* 首页卡片 - 支持透明度，无模糊 */
 .hero-card {
-  background: rgba(255, 255, 255, var(--card-opacity));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, var(--card-bg-opacity));
   border-radius: var(--radius);
   padding: 32px;
   text-align: center;
   box-shadow: var(--shadow);
   margin-bottom: 24px;
   border: 1px solid var(--border-color);
+  transition: background 0.3s;
 }
 
 [data-theme="dark"] .hero-card {
-  background: rgba(26, 26, 46, var(--card-opacity));
+  background: rgba(26, 26, 46, var(--card-bg-opacity));
 }
 
 .watch-count {
@@ -170,7 +175,7 @@ body {
   color: var(--text-light);
 }
 
-/* 电影列表 - 支持透明度 */
+/* 电影列表 - 支持透明度，无模糊 */
 .movie-list {
   display: flex;
   flex-direction: column;
@@ -178,9 +183,7 @@ body {
 }
 
 .movie-card {
-  background: rgba(255, 255, 255, var(--card-opacity));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, var(--card-bg-opacity));
   border-radius: var(--radius-sm);
   padding: 16px;
   box-shadow: var(--shadow);
@@ -188,12 +191,12 @@ body {
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
   border: 1px solid var(--border-color);
 }
 
 [data-theme="dark"] .movie-card {
-  background: rgba(26, 26, 46, var(--card-opacity));
+  background: rgba(26, 26, 46, var(--card-bg-opacity));
 }
 
 .movie-card:hover {
@@ -295,6 +298,11 @@ body {
   align-self: flex-end;
 }
 
+/* 保存背景按钮 */
+.btn-save-bg {
+  margin-top: 12px;
+}
+
 /* 搜索和筛选 */
 .search-bar {
   margin-bottom: 0;
@@ -308,8 +316,13 @@ body {
   border-radius: var(--radius-sm);
   font-size: 14px;
   outline: none;
-  background: var(--card-bg);
+  background: #fff;
   color: var(--text);
+}
+
+[data-theme="dark"] .search-bar input,
+[data-theme="dark"] .filter-bar select {
+  background: #1a1a2e;
 }
 
 .search-bar input:focus,
@@ -329,9 +342,7 @@ body {
 }
 
 .achievement-card {
-  background: rgba(255, 255, 255, var(--card-opacity));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, var(--card-bg-opacity));
   border-radius: var(--radius);
   padding: 20px;
   text-align: center;
@@ -343,7 +354,7 @@ body {
 }
 
 [data-theme="dark"] .achievement-card {
-  background: rgba(26, 26, 46, var(--card-opacity));
+  background: rgba(26, 26, 46, var(--card-bg-opacity));
 }
 
 .achievement-card.unlocked {
@@ -378,9 +389,7 @@ body {
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, var(--card-opacity));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, var(--card-bg-opacity));
   border-radius: var(--radius);
   padding: 16px;
   text-align: center;
@@ -389,7 +398,7 @@ body {
 }
 
 [data-theme="dark"] .stat-card {
-  background: rgba(26, 26, 46, var(--card-opacity));
+  background: rgba(26, 26, 46, var(--card-bg-opacity));
 }
 
 .stat-card h3 {
@@ -405,9 +414,7 @@ body {
 }
 
 .chart-section {
-  background: rgba(255, 255, 255, var(--card-opacity));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, var(--card-bg-opacity));
   border-radius: var(--radius);
   padding: 20px;
   margin-bottom: 16px;
@@ -416,7 +423,7 @@ body {
 }
 
 [data-theme="dark"] .chart-section {
-  background: rgba(26, 26, 46, var(--card-opacity));
+  background: rgba(26, 26, 46, var(--card-bg-opacity));
 }
 
 .chart-section h3 {
@@ -485,11 +492,9 @@ body {
   font-weight: 600;
 }
 
-/* 弹窗 - 支持透明度 */
+/* 弹窗 - 支持透明度，无模糊 */
 .modal-content {
-  background: rgba(255, 255, 255, var(--card-opacity));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, var(--card-bg-opacity));
   border-radius: var(--radius);
   padding: 24px;
   width: 100%;
@@ -499,10 +504,11 @@ body {
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border-color);
+  transition: background 0.3s;
 }
 
 [data-theme="dark"] .modal-content {
-  background: rgba(26, 26, 46, var(--card-opacity));
+  background: rgba(26, 26, 46, var(--card-bg-opacity));
 }
 
 .modal {
@@ -517,7 +523,6 @@ body {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  backdrop-filter: blur(4px);
 }
 
 .modal.active {
@@ -568,8 +573,13 @@ body {
   border-radius: var(--radius-sm);
   font-size: 14px;
   outline: none;
-  background: var(--bg);
+  background: #fff;
   color: var(--text);
+}
+
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group select {
+  background: #1a1a2e;
 }
 
 .form-group input:focus,
@@ -689,9 +699,14 @@ body {
   margin-bottom: 10px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  background: var(--bg);
+  background: #fff;
   color: var(--text);
   font-size: 14px;
+}
+
+[data-theme="dark"] .settings-section input[type="text"],
+[data-theme="dark"] .settings-section input[type="password"] {
+  background: #1a1a2e;
 }
 
 .settings-section input[type="range"] {
@@ -743,19 +758,18 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, var(--card-opacity));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, var(--card-bg-opacity));
   display: flex;
   justify-content: space-around;
   padding: 8px 0;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
   z-index: 100;
   border-top: 1px solid var(--border-color);
+  transition: background 0.3s;
 }
 
 [data-theme="dark"] .bottom-nav {
-  background: rgba(26, 26, 46, var(--card-opacity));
+  background: rgba(26, 26, 46, var(--card-bg-opacity));
 }
 
 .nav-item {
