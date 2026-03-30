@@ -137,6 +137,33 @@
         <span class="close" onclick="hideSettings()">&times;</span>
         <h2>设置</h2>
         
+        <!-- 音乐设置 -->
+        <div class="settings-section">
+          <h3>🎵 背景音乐</h3>
+          <div id="music-player" class="music-player">
+            <div class="music-controls">
+              <button class="music-toggle" id="music-toggle-btn" onclick="toggleMusic()">🔇</button>
+              <div class="music-info">
+                <span id="current-song">选择歌曲</span>
+              </div>
+            </div>
+            <div class="music-library">
+              <div class="music-track" onclick="playTrack(0)">
+                <span class="track-name">CMJ - 萤火之森</span>
+                <span class="track-play" id="track-0-status">▶</span>
+              </div>
+              <div class="music-track" onclick="playTrack(1)">
+                <span class="track-name">久石让 - Summer</span>
+                <span class="track-play" id="track-1-status">▶</span>
+              </div>
+            </div>
+            <div class="music-volume">
+              <span>音量:</span>
+              <input type="range" id="volume-slider" min="0" max="100" value="50" onchange="setVolume(this.value)">
+            </div>
+          </div>
+        </div>
+
         <!-- 主题设置 -->
         <div class="settings-section">
           <h3>主题</h3>
@@ -162,6 +189,7 @@
           <input type="range" id="bg-opacity" min="0" max="100" value="30" oninput="updateBgPreview()">
           <label>背景不透明度: <span id="opacity-value">30%</span></label>
           <button class="btn-primary btn-save-bg" onclick="saveBackgroundSettings()">💾 保存背景设置</button>
+          <p class="setting-tip">点击保存后会同步到云端，另一设备刷新即可看到</p>
         </div>
 
         <!-- 组件透明度设置 -->
@@ -188,6 +216,9 @@
         </div>
       </div>
     </div>
+
+    <!-- 音乐播放 -->
+    <audio id="audio-player" preload="auto"></audio>
   </div>
 
   <nav class="bottom-nav">
@@ -227,10 +258,19 @@
       { id: 'documentary', name: '纪录片' }
     ];
 
+    // 音乐曲目
+    const musicTracks = [
+      { name: 'CMJ - 萤火之森', url: 'https://music.163.com/song/media/outer/url?id=5252295' },
+      { name: '久石让 - Summer', url: 'https://music.163.com/song/media/outer/url?id=432506364' }
+    ];
+
     // ========== 状态 ==========
     let movies = [];
     let isAdmin = false;
     let customGenres = [];
+    let isMusicPlaying = false;
+    let currentTrackIndex = -1;
+    let musicMuted = true;
     let cloudSettings = {
       bgImage: '',
       bgOpacity: 30,
@@ -278,14 +318,16 @@
       document.getElementById('card-opacity').value = config.cardOpacity;
       document.getElementById('card-opacity-value').textContent = config.cardOpacity + '%';
 
-      // 加载云端设置（背景同步）
-      await fetchCloudSettings();
+      // 加载云端设置（背景同步）- 添加重试逻辑
+      await fetchCloudSettingsWithRetry(3);
       
       // 如果有云端背景，应用它
       if (cloudSettings.bgImage) {
         applyBackground(cloudSettings.bgImage, cloudSettings.bgOpacity);
         config.bgImage = cloudSettings.bgImage;
         config.bgOpacity = cloudSettings.bgOpacity;
+        // 更新UI显示
+        document.getElementById('bg-image-url').value = cloudSettings.bgImage;
       } else if (config.bgImage) {
         applyBackground(config.bgImage, config.bgOpacity);
       }
@@ -324,31 +366,53 @@
       renderHome();
     }
 
+    // ========== 云端设置 - 带重试 ==========
+    async function fetchCloudSettingsWithRetry(retryCount) {
+      for (let i = 0; i < retryCount; i++) {
+        try {
+          await fetchCloudSettings();
+          if (cloudSettings.bgImage || cloudSettings.cardOpacity !== 100) {
+            return; // 成功获取到数据
+          }
+        } catch (e) {
+          console.log(`获取云端设置第${i+1}次失败:`, e);
+        }
+        if (i < retryCount - 1) {
+          await new Promise(r => setTimeout(r, 500)); // 等待后重试
+        }
+      }
+    }
+
     // ========== 云端设置 ==========
     async function fetchCloudSettings() {
       try {
-        console.log('Fetching cloud settings...');
+        console.log('正在获取云端设置...');
         const response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
           headers: { 
             'apikey': SUPABASE_KEY, 
             'Authorization': 'Bearer ' + SUPABASE_KEY,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
           }
         });
         
         if (response.ok) {
           const data = await response.json();
-          console.log('Cloud settings response:', data);
+          console.log('云端设置响应:', data);
           
           if (data && data.length > 0 && data[0].value) {
             const settings = JSON.parse(data[0].value);
-            console.log('Parsed cloud settings:', settings);
+            console.log('解析云端设置:', settings);
             cloudSettings = { ...cloudSettings, ...settings };
-            console.log('Updated cloudSettings:', cloudSettings);
+            console.log('更新后的cloudSettings:', cloudSettings);
+          } else {
+            console.log('云端没有保存的设置，使用默认值');
           }
+        } else {
+          console.log('获取云端设置失败:', response.status);
         }
       } catch (err) {
-        console.log('Fetch cloud settings failed:', err);
+        console.log('获取云端设置出错:', err);
       }
     }
 
@@ -360,7 +424,7 @@
           cardOpacity: cloudSettings.cardOpacity
         });
         
-        console.log('Saving to cloud:', value);
+        console.log('正在保存到云端:', value);
         
         // 先检查是否存在
         let response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
@@ -368,7 +432,8 @@
           headers: { 
             'apikey': SUPABASE_KEY, 
             'Authorization': 'Bearer ' + SUPABASE_KEY,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
           }
         });
         
@@ -376,19 +441,20 @@
         
         if (existing && existing.length > 0) {
           // 更新
-          await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
+          response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
             method: 'PATCH',
             headers: {
               'apikey': SUPABASE_KEY,
               'Authorization': 'Bearer ' + SUPABASE_KEY,
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
             },
             body: JSON.stringify({ value })
           });
-          console.log('Cloud settings updated');
+          console.log('云端设置已更新, 状态:', response.status);
         } else {
           // 创建
-          await fetch(SUPABASE_URL + '/rest/v1/settings', {
+          response = await fetch(SUPABASE_URL + '/rest/v1/settings', {
             method: 'POST',
             headers: {
               'apikey': SUPABASE_KEY,
@@ -398,10 +464,94 @@
             },
             body: JSON.stringify({ key: 'global', value })
           });
-          console.log('Cloud settings created');
+          console.log('云端设置已创建, 状态:', response.status);
+        }
+        
+        if (!response.ok) {
+          console.log('保存云端设置失败');
         }
       } catch (err) {
-        console.log('Save cloud settings failed:', err);
+        console.log('保存云端设置出错:', err);
+      }
+    }
+
+    // ========== 音乐功能 ==========
+    function playTrack(index) {
+      const audio = document.getElementById('audio-player');
+      const track = musicTracks[index];
+      
+      // 更新播放状态显示
+      if (currentTrackIndex >= 0) {
+        document.getElementById('track-' + currentTrackIndex + '-status').textContent = '▶';
+      }
+      
+      if (currentTrackIndex === index && !audio.paused) {
+        // 暂停当前播放
+        audio.pause();
+        document.getElementById('track-' + index + '-status').textContent = '▶';
+        isMusicPlaying = false;
+        updateMusicToggleButton();
+        return;
+      }
+      
+      // 播放新曲目
+      currentTrackIndex = index;
+      audio.src = track.url;
+      audio.volume = document.getElementById('volume-slider').value / 100;
+      
+      // 如果静音则不播放
+      if (!musicMuted) {
+        audio.play().catch(e => console.log('播放失败:', e));
+        isMusicPlaying = true;
+        document.getElementById('track-' + index + '-status').textContent = '⏸';
+      } else {
+        document.getElementById('track-' + index + '-status').textContent = '⏸';
+      }
+      
+      document.getElementById('current-song').textContent = track.name;
+      
+      // 更新音量
+      audio.volume = musicMuted ? 0 : document.getElementById('volume-slider').value / 100;
+    }
+
+    function toggleMusic() {
+      const audio = document.getElementById('audio-player');
+      musicMuted = !musicMuted;
+      
+      if (musicMuted) {
+        audio.pause();
+        if (currentTrackIndex >= 0) {
+          document.getElementById('track-' + currentTrackIndex + '-status').textContent = '▶';
+        }
+      } else {
+        // 尝试播放
+        if (currentTrackIndex === -1) {
+          // 默认播放第一首
+          playTrack(0);
+        } else {
+          audio.play().catch(e => console.log('播放失败:', e));
+          if (currentTrackIndex >= 0) {
+            document.getElementById('track-' + currentTrackIndex + '-status').textContent = '⏸';
+          }
+        }
+      }
+      
+      updateMusicToggleButton();
+    }
+
+    function updateMusicToggleButton() {
+      const btn = document.getElementById('music-toggle-btn');
+      if (musicMuted) {
+        btn.textContent = '🔇';
+      } else {
+        btn.textContent = '🔊';
+      }
+    }
+
+    function setVolume(value) {
+      const audio = document.getElementById('audio-player');
+      if (!musicMuted) {
+        audio.volume = value / 100;
       }
     }
 
@@ -468,7 +618,7 @@
       document.getElementById('card-opacity-value').textContent = value + '%';
       document.getElementById('card-opacity').value = value;
       
-      // 应用透明度到组件（使用 rgba 背景，不带模糊）
+      // 应用透明度
       document.documentElement.style.setProperty('--card-bg-opacity', value / 100);
       
       localStorage.setItem('movie-together-config', JSON.stringify(config));
