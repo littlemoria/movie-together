@@ -43,13 +43,16 @@
       </section>
 
       <section id="movies-page" class="page">
-        <div class="search-bar">
-          <input type="text" id="search-input" placeholder="搜索电影..." oninput="filterMovies()">
-        </div>
-        <div class="filter-bar">
-          <select id="genre-filter" onchange="filterMovies()">
-            <option value="">全部类型</option>
-          </select>
+        <div class="page-header">
+          <div class="search-bar">
+            <input type="text" id="search-input" placeholder="搜索电影..." oninput="filterMovies()">
+          </div>
+          <div class="filter-bar">
+            <select id="genre-filter" onchange="filterMovies()">
+              <option value="">全部类型</option>
+            </select>
+          </div>
+          <button class="btn-export" onclick="exportToExcel()">📥 导出数据</button>
         </div>
         <div id="all-movies" class="movie-list"></div>
       </section>
@@ -145,7 +148,7 @@
 
         <!-- 背景设置 -->
         <div class="settings-section">
-          <h3>背景图片</h3>
+          <h3>背景图片（同步到云端）</h3>
           <div class="bg-options">
             <div class="bg-option">
               <label>输入图片URL</label>
@@ -162,6 +165,14 @@
             <button class="btn-small" onclick="applyBg()">应用URL背景</button>
             <button class="btn-small btn-danger" onclick="clearBg()">清除背景</button>
           </div>
+        </div>
+
+        <!-- 组件透明度设置 -->
+        <div class="settings-section">
+          <h3>组件透明度</h3>
+          <label>卡片透明度: <span id="card-opacity-value">100%</span></label>
+          <input type="range" id="card-opacity" min="0" max="100" value="100" oninput="updateCardOpacity()">
+          <p class="setting-tip">调低透明度可让背景图片透出来</p>
         </div>
 
         <!-- 管理员设置 -->
@@ -222,10 +233,16 @@
     let movies = [];
     let isAdmin = false;
     let customGenres = [];
+    let cloudSettings = {
+      bgImage: '',
+      bgOpacity: 30,
+      cardOpacity: 100
+    };
     let config = {
       theme: 'light',
       bgImage: '',
       bgOpacity: 30,
+      cardOpacity: 100,
       adminPassword: 'movie2024'
     };
 
@@ -242,8 +259,8 @@
     ];
 
     // ========== 初始化 ==========
-    function init() {
-      // 加载配置
+    async function init() {
+      // 加载本地配置
       const savedConfig = localStorage.getItem('movie-together-config');
       if (savedConfig) {
         config = { ...config, ...JSON.parse(savedConfig) };
@@ -258,10 +275,19 @@
       // 应用主题
       setTheme(config.theme);
       
-      // 应用背景
-      if (config.bgImage) {
+      // 应用卡片透明度
+      updateCardOpacity(config.cardOpacity);
+
+      // 加载云端设置（背景同步）
+      await fetchCloudSettings();
+      
+      // 如果有云端背景，应用它
+      if (cloudSettings.bgImage) {
+        applyBackground(cloudSettings.bgImage, cloudSettings.bgOpacity);
+        config.bgImage = cloudSettings.bgImage;
+        config.bgOpacity = cloudSettings.bgOpacity;
+      } else if (config.bgImage) {
         applyBackground(config.bgImage, config.bgOpacity);
-        document.getElementById('bg-opacity').value = config.bgOpacity;
       }
 
       // 初始化日期
@@ -286,11 +312,75 @@
       // 绑定表单提交
       document.getElementById('movie-form').onsubmit = handleMovieSubmit;
       
-      // 绑定背景图片上传 - 关键修复！
+      // 绑定背景图片上传
       document.getElementById('bg-file-input').addEventListener('change', handleBgUpload);
 
       // 加载数据
-      fetchMovies().then(() => renderHome());
+      await fetchMovies();
+      renderHome();
+    }
+
+    // ========== 云端设置 ==========
+    async function fetchCloudSettings() {
+      try {
+        const response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.length > 0 && data[0].value) {
+            cloudSettings = { ...cloudSettings, ...JSON.parse(data[0].value) };
+          }
+        }
+      } catch (err) {
+        console.log('Fetch cloud settings failed:', err);
+      }
+    }
+
+    async function saveCloudSettings() {
+      try {
+        const value = JSON.stringify({
+          bgImage: cloudSettings.bgImage,
+          bgOpacity: cloudSettings.bgOpacity,
+          cardOpacity: cloudSettings.cardOpacity
+        });
+        
+        // 先尝试更新
+        let response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
+          method: 'GET',
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+        });
+        
+        const existing = await response.json();
+        
+        if (existing.length > 0) {
+          // 更新
+          await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
+            method: 'PATCH',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ value })
+          });
+        } else {
+          // 创建
+          await fetch(SUPABASE_URL + '/rest/v1/settings', {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ key: 'global', value })
+          });
+        }
+        console.log('Cloud settings saved');
+      } catch (err) {
+        console.log('Save cloud settings failed:', err);
+      }
     }
 
     // ========== 渲染类型选项 ==========
@@ -319,7 +409,6 @@
       
       const id = name.toLowerCase().replace(/\s+/g, '-');
       
-      // 检查是否已存在
       if (customGenres.find(g => g.id === id)) {
         alert('类型已存在');
         return;
@@ -344,6 +433,24 @@
       });
     }
 
+    // ========== 组件透明度 ==========
+    function updateCardOpacity(value) {
+      if (value === undefined) {
+        value = document.getElementById('card-opacity').value;
+      }
+      config.cardOpacity = value;
+      cloudSettings.cardOpacity = value;
+      
+      document.getElementById('card-opacity-value').textContent = value + '%';
+      document.getElementById('card-opacity').value = value;
+      
+      // 应用透明度到卡片
+      document.documentElement.style.setProperty('--card-opacity', value / 100);
+      
+      localStorage.setItem('movie-together-config', JSON.stringify(config));
+      saveCloudSettings();
+    }
+
     // ========== 背景图片 ==========
     function updateBgPreview() {
       const opacity = document.getElementById('bg-opacity').value;
@@ -354,20 +461,23 @@
       const file = event.target.files[0];
       if (!file) return;
       
-      console.log('Uploading file:', file.name);
-      
       const reader = new FileReader();
-      reader.onload = function(e) {
-        console.log('File loaded, applying background...');
-        // 保存为 data URL
+      reader.onload = async function(e) {
+        // 保存到本地
         config.bgImage = e.target.result;
         config.bgOpacity = document.getElementById('bg-opacity').value;
+        cloudSettings.bgImage = e.target.result;
+        cloudSettings.bgOpacity = config.bgOpacity;
+        
         applyBackground(config.bgImage, config.bgOpacity);
+        
+        // 保存到本地存储
         localStorage.setItem('movie-together-config', JSON.stringify(config));
-        alert('背景图片已应用！');
-      };
-      reader.onerror = function() {
-        alert('读取文件失败，请重试');
+        
+        // 同步到云端
+        await saveCloudSettings();
+        
+        alert('背景图片已应用并同步到云端！');
       };
       reader.readAsDataURL(file);
     }
@@ -378,15 +488,20 @@
       if (url) {
         config.bgImage = url;
         config.bgOpacity = opacity;
+        cloudSettings.bgImage = url;
+        cloudSettings.bgOpacity = opacity;
+        
         applyBackground(url, opacity);
         localStorage.setItem('movie-together-config', JSON.stringify(config));
+        
+        // 同步到云端
+        saveCloudSettings();
       } else {
         alert('请输入图片URL');
       }
     }
 
     function applyBackground(url, opacity) {
-      console.log('Applying background:', url.substring(0, 50) + '...');
       document.body.style.backgroundImage = `url(${url})`;
       document.body.style.backgroundSize = 'cover';
       document.body.style.backgroundPosition = 'center';
@@ -407,12 +522,67 @@
 
     function clearBg() {
       config.bgImage = '';
+      cloudSettings.bgImage = '';
       localStorage.setItem('movie-together-config', JSON.stringify(config));
       document.body.style.backgroundImage = '';
       const overlay = document.getElementById('bg-overlay');
       if (overlay) overlay.style.backgroundColor = 'transparent';
       document.getElementById('bg-image-url').value = '';
+      
+      saveCloudSettings();
       alert('背景已清除');
+    }
+
+    // ========== 导出Excel ==========
+    function exportToExcel() {
+      if (movies.length === 0) {
+        alert('没有数据可导出');
+        return;
+      }
+      
+      // 创建CSV内容
+      const headers = ['电影名称', '观看日期', '时长(分钟)', '类型', '记录人', '添加时间'];
+      const rows = movies.map(m => {
+        const watchDate = new Date(m.watch_date);
+        const createdAt = m.created_at ? new Date(m.created_at) : '';
+        return [
+          m.movie_name,
+          m.watch_date,
+          m.duration_minutes || '',
+          getGenreNames(m.genre),
+          m.created_by || '',
+          createdAt ? createdAt.toLocaleString('zh-CN') : ''
+        ];
+      });
+      
+      // 转义CSV内容
+      const escapeCSV = (str) => {
+        if (str === null || str === undefined) return '';
+        const s = String(str);
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      };
+      
+      const csvContent = [
+        headers.map(escapeCSV).join(','),
+        ...rows.map(row => row.map(escapeCSV).join(','))
+      ].join('\n');
+      
+      // 添加BOM以支持中文
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      // 下载文件
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `观影记录_${new Date().toLocaleDateString('zh-CN')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      alert('导出成功！文件已下载');
     }
 
     // ========== 管理员登录 ==========
@@ -424,7 +594,6 @@
         document.getElementById('logged-in-status').style.display = 'block';
         alert('登录成功！现在点击电影卡片可以编辑了');
         
-        // 重新渲染电影列表，使卡片可点击
         renderHome();
         renderMovies();
       } else {
@@ -438,7 +607,6 @@
       document.getElementById('logged-in-status').style.display = 'none';
       document.getElementById('admin-password').value = '';
       
-      // 重新渲染
       renderHome();
       renderMovies();
     }
@@ -580,11 +748,12 @@
       } else {
         recentDiv.innerHTML = sorted.slice(0, 3).map(m => renderMovieCard(m)).join('');
       }
+      
+      bindMovieCardClicks();
     }
 
     function renderMovieCard(m) {
       const genreHtml = m.genre ? '<span class="movie-badge">' + getGenreNames(m.genre) + '</span>' : '';
-      // 所有卡片都可以点击，登录后可以编辑，未登录会提示
       return '<div class="movie-card" data-id="' + m.id + '">' +
         '<div class="movie-info">' +
         '<div class="movie-title">' + m.movie_name + '</div>' +
@@ -607,11 +776,9 @@
         container.innerHTML = filtered.map(m => renderMovieCard(m)).join('');
       }
       
-      // 重新绑定点击事件（因为HTML是动态生成的）
       bindMovieCardClicks();
     }
 
-    // 绑定电影卡片点击事件 - 关键修复！
     function bindMovieCardClicks() {
       document.querySelectorAll('.movie-card').forEach(card => {
         card.onclick = function() {
@@ -623,11 +790,9 @@
 
     function handleMovieCardClick(id) {
       if (isAdmin) {
-        // 管理员可以编辑
         const movie = movies.find(m => m.id == id);
         if (movie) showMovieModal(movie);
       } else {
-        // 非管理员提示登录
         alert('点击电影卡片可编辑记录\n\n请先在设置中登录管理员账号\n默认密码：movie2024');
         showSettings();
       }
@@ -652,7 +817,6 @@
       document.getElementById('stat-hours').textContent = Math.floor(totalMinutes / 60);
       document.getElementById('stat-avg').textContent = movies.length ? Math.round(totalMinutes / movies.length) : 0;
 
-      // 类型分布
       const genreCounts = {};
       const allGenres = [...defaultGenres, ...customGenres];
       movies.forEach(m => {
@@ -668,7 +832,6 @@
         return '<div class="genre-item"><span class="genre-dot" style="background:' + colors[i % colors.length] + '"></span><span>' + getGenreName(genre) + '</span><span class="genre-count">' + count + '</span></div>';
       }).join('') || '<p class="empty-state">暂无数据</p>';
 
-      // 月度分布
       const monthlyCounts = {};
       movies.forEach(m => { const k = getMonthKey(m.watch_date); monthlyCounts[k] = (monthlyCounts[k] || 0) + 1; });
       const sortedMonths = Object.keys(monthlyCounts).sort().slice(-6);
@@ -693,13 +856,11 @@
         document.getElementById('duration').value = movie.duration_minutes || '';
         document.getElementById('created-by').value = movie.created_by || '';
         
-        // 设置类型多选
         const genres = (movie.genre || '').split(',');
         document.querySelectorAll('input[name="genre"]').forEach(cb => {
           cb.checked = genres.includes(cb.value);
         });
         
-        // 显示删除按钮
         deleteBtn.style.display = 'block';
       } else {
         document.getElementById('modal-title').textContent = '添加观影记录';
@@ -725,11 +886,6 @@
       document.getElementById('settings-modal').classList.remove('active');
     }
 
-    function editMovie(id) {
-      const movie = movies.find(m => m.id == id);
-      if (movie) showMovieModal(movie);
-    }
-
     function deleteMovie() {
       const id = document.getElementById('movie-id').value;
       if (!id) return;
@@ -748,7 +904,6 @@
     async function handleMovieSubmit(e) {
       e.preventDefault();
       
-      // 获取多选类型
       const genres = [];
       document.querySelectorAll('input[name="genre"]:checked').forEach(cb => {
         genres.push(cb.value);
