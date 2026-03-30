@@ -13,8 +13,8 @@
       <h1 id="page-title">第 X 次一起看</h1>
       <p class="subtitle" id="page-subtitle">记录我们的观影时光</p>
       <div class="header-buttons">
-        <button class="music-btn" id="music-btn" onclick="toggleMusicPanel()">🎵</button>
-        <button class="settings-btn" onclick="showSettings()">⚙️</button>
+        <button class="icon-btn music-btn" id="music-btn" onclick="toggleMusicPanel()" title="背景音乐">🎵</button>
+        <button class="icon-btn settings-btn" onclick="showSettings()" title="设置">⚙️</button>
       </div>
     </header>
 
@@ -105,9 +105,13 @@
           </div>
         </div>
         
+        <!-- 类型分布 - 扇形图 -->
         <div class="chart-section">
           <h3>类型分布</h3>
-          <div id="genre-chart" class="genre-chart"></div>
+          <div class="genre-chart-container">
+            <canvas id="pie-chart" width="200" height="200"></canvas>
+            <div id="genre-chart" class="genre-chart"></div>
+          </div>
         </div>
 
         <div class="chart-section">
@@ -171,32 +175,48 @@
           </div>
         </div>
 
-        <!-- 背景设置 - 重新整理 -->
+        <!-- 背景设置 -->
         <div class="settings-section">
           <h3>🎨 背景与显示</h3>
           
-          <!-- 背景图片 -->
-          <div class="bg-option">
+          <!-- 背景类型选择 -->
+          <div class="bg-type-selector">
+            <label><input type="radio" name="bg-type" value="image" checked onchange="onBgTypeChange()"> 图片</label>
+            <label><input type="radio" name="bg-type" value="gif" onchange="onBgTypeChange()"> GIF动图</label>
+            <label><input type="radio" name="bg-type" value="video" onchange="onBgTypeChange()"> 视频</label>
+          </div>
+          
+          <!-- 图片输入 -->
+          <div class="bg-option" id="bg-image-option">
             <label>背景图片URL</label>
             <input type="text" id="bg-image-url" placeholder="https://example.com/image.jpg" oninput="onBgUrlChange()">
           </div>
-          <div class="bg-option">
-            <label>或上传本地图片</label>
-            <input type="file" id="bg-file-input" accept="image/*">
+          <div class="bg-option" id="bg-gif-option" style="display:none;">
+            <label>GIF动图URL</label>
+            <input type="text" id="bg-gif-url" placeholder="https://example.com/background.gif" oninput="onBgUrlChange()">
+          </div>
+          <div class="bg-option" id="bg-video-option" style="display:none;">
+            <label>视频URL (建议10秒以内)</label>
+            <input type="text" id="bg-video-url" placeholder="https://example.com/background.mp4" oninput="onBgUrlChange()">
           </div>
           
-          <!-- 遮罩透明度 - 控制背景图的清晰度 -->
+          <div class="bg-option">
+            <label>或上传本地文件</label>
+            <input type="file" id="bg-file-input" accept="image/*,video/*,.gif">
+          </div>
+          
+          <!-- 遮罩透明度 -->
           <div class="opacity-control">
             <label>背景遮罩透明度: <span id="bg-mask-opacity-value">30%</span></label>
             <input type="range" id="bg-mask-opacity" min="0" max="100" value="30" oninput="onBgMaskOpacityChange()">
-            <p class="setting-tip">数值越低，背景图片越清晰</p>
+            <p class="setting-tip">数值越低，背景越清晰</p>
           </div>
           
-          <!-- 卡片透明度 - 控制前景内容的透明度 -->
+          <!-- 卡片透明度 -->
           <div class="opacity-control">
             <label>卡片/内容透明度: <span id="card-opacity-value">100%</span></label>
             <input type="range" id="card-opacity" min="0" max="100" value="100" oninput="onCardOpacityChange()">
-            <p class="setting-tip">数值越低，背景图片越透出来</p>
+            <p class="setting-tip">数值越低，背景越透出来</p>
           </div>
           
           <button class="btn-primary btn-save-bg" onclick="saveBackgroundSettings()">💾 保存并同步到云端</button>
@@ -247,7 +267,6 @@
     const SUPABASE_URL = 'https://zbghffgydxzufzfuozwq.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc';
 
-    // 默认类型
     const defaultGenres = [
       { id: 'action', name: '动作' },
       { id: 'romance', name: '爱情' },
@@ -260,7 +279,6 @@
       { id: 'documentary', name: '纪录片' }
     ];
 
-    // 音乐曲目 - 使用用户提供的链接
     const musicTracks = [
       { name: '萤火之森 - CMJ', url: 'http://music.163.com/song/media/outer/url?id=1415706303.mp3' },
       { name: 'Summer - 久石让', url: 'http://music.163.com/song/media/outer/url?id=1867107328.mp3' }
@@ -270,24 +288,28 @@
     let movies = [];
     let isAdmin = false;
     let customGenres = [];
-    let isMusicPlaying = false;
     let currentTrackIndex = -1;
     let musicMuted = true;
     let musicPanelOpen = false;
     let cloudSettings = {
+      bgType: 'image',
       bgImage: '',
+      bgGif: '',
+      bgVideo: '',
       bgMaskOpacity: 30,
       cardOpacity: 100
     };
     let config = {
       theme: 'light',
+      bgType: 'image',
       bgImage: '',
+      bgGif: '',
+      bgVideo: '',
       bgMaskOpacity: 30,
       cardOpacity: 100,
       adminPassword: 'movie2024'
     };
 
-    // 成就定义
     const achievements = [
       { id: 'first_watch', name: '初遇', desc: '第1次一起看', icon: '🎬', condition: (m) => m.length >= 1 },
       { id: 'tenth_watch', name: '十次之约', desc: '第10次一起看', icon: '🎬', condition: (m) => m.length >= 10 },
@@ -301,90 +323,99 @@
 
     // ========== 初始化 ==========
     async function init() {
-      // 加载本地配置
       const savedConfig = localStorage.getItem('movie-together-config');
       if (savedConfig) {
         config = { ...config, ...JSON.parse(savedConfig) };
       }
       
-      // 加载自定义类型
       const savedGenres = localStorage.getItem('movie-together-genres');
       if (savedGenres) {
         customGenres = JSON.parse(savedGenres);
       }
       
-      // 应用主题
       setTheme(config.theme);
-      
-      // 应用透明度设置
       applyOpacitySettings();
       
-      // 加载云端设置（背景同步）
       await fetchCloudSettingsWithRetry(3);
       
-      // 如果有云端背景，应用它
-      if (cloudSettings.bgImage) {
-        applyBackground(cloudSettings.bgImage, cloudSettings.bgMaskOpacity);
-        config.bgImage = cloudSettings.bgImage;
+      // 应用云端背景设置
+      if (cloudSettings.bgImage || cloudSettings.bgGif || cloudSettings.bgVideo) {
+        config.bgType = cloudSettings.bgType || 'image';
+        config.bgImage = cloudSettings.bgImage || '';
+        config.bgGif = cloudSettings.bgGif || '';
+        config.bgVideo = cloudSettings.bgVideo || '';
         config.bgMaskOpacity = cloudSettings.bgMaskOpacity;
         config.cardOpacity = cloudSettings.cardOpacity;
-        // 更新UI显示
-        document.getElementById('bg-image-url').value = cloudSettings.bgImage;
-      } else if (config.bgImage) {
-        applyBackground(config.bgImage, config.bgMaskOpacity);
+        
+        updateBgInputsFromConfig();
+        applyBackground();
+      } else if (config.bgImage || config.bgGif || config.bgVideo) {
+        updateBgInputsFromConfig();
+        applyBackground();
       }
       
-      // 更新UI显示所有滑块值
-      document.getElementById('bg-mask-opacity').value = config.bgMaskOpacity;
-      document.getElementById('bg-mask-opacity-value').textContent = config.bgMaskOpacity + '%';
-      document.getElementById('card-opacity').value = config.cardOpacity;
-      document.getElementById('card-opacity-value').textContent = config.cardOpacity + '%';
-
-      // 初始化日期
+      applyOpacitySettings();
       document.getElementById('watch-date').valueAsDate = new Date();
       
-      // 渲染类型选项
       renderGenreOptions();
       renderFilterOptions();
       
-      // 绑定导航事件
       document.querySelectorAll('.nav-item').forEach(btn => {
         btn.onclick = () => navigate(btn.dataset.page);
       });
 
-      // 绑定弹窗事件
       document.getElementById('add-btn').onclick = () => showMovieModal();
       document.getElementById('close-modal').onclick = () => hideMovieModal();
       document.getElementById('movie-modal').onclick = (e) => { 
         if (e.target.id === 'movie-modal') hideMovieModal(); 
       };
       
-      // 绑定表单提交
       document.getElementById('movie-form').onsubmit = handleMovieSubmit;
-      
-      // 绑定背景图片上传
       document.getElementById('bg-file-input').addEventListener('change', handleBgUpload);
 
-      // 加载数据
+      // 音乐播放结束自动播放下一首
+      document.getElementById('audio-player').addEventListener('ended', playNextTrack);
+
       await fetchMovies();
       renderHome();
     }
 
-    // ========== 透明度设置应用 ==========
+    function updateBgInputsFromConfig() {
+      // 更新单选框
+      document.querySelectorAll('input[name="bg-type"]').forEach(radio => {
+        radio.checked = radio.value === config.bgType;
+      });
+      onBgTypeChange();
+      
+      // 更新输入框
+      document.getElementById('bg-image-url').value = config.bgImage || '';
+      document.getElementById('bg-gif-url').value = config.bgGif || '';
+      document.getElementById('bg-video-url').value = config.bgVideo || '';
+    }
+
+    // ========== 透明度设置 ==========
     function applyOpacitySettings() {
       document.getElementById('bg-mask-opacity').value = config.bgMaskOpacity;
       document.getElementById('bg-mask-opacity-value').textContent = config.bgMaskOpacity + '%';
       document.getElementById('card-opacity').value = config.cardOpacity;
       document.getElementById('card-opacity-value').textContent = config.cardOpacity + '%';
       document.documentElement.style.setProperty('--card-bg-opacity', config.cardOpacity / 100);
+      
+      // 同时更新音乐面板透明度
+      updateMusicPanelOpacity();
     }
 
-    // ========== 云端设置 - 带重试 ==========
+    function updateMusicPanelOpacity() {
+      const panel = document.getElementById('music-panel');
+      panel.style.setProperty('--panel-opacity', config.cardOpacity / 100);
+    }
+
+    // ========== 云端设置 ==========
     async function fetchCloudSettingsWithRetry(retryCount) {
       for (let i = 0; i < retryCount; i++) {
         try {
           await fetchCloudSettings();
-          if (cloudSettings.bgImage || cloudSettings.cardOpacity !== 100) {
+          if (cloudSettings.bgImage || cloudSettings.bgGif || cloudSettings.bgVideo || cloudSettings.cardOpacity !== 100) {
             return;
           }
         } catch (e) {
@@ -396,10 +427,8 @@
       }
     }
 
-    // ========== 云端设置 ==========
     async function fetchCloudSettings() {
       try {
-        console.log('正在获取云端设置...');
         const response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
           headers: { 
             'apikey': SUPABASE_KEY, 
@@ -411,17 +440,10 @@
         
         if (response.ok) {
           const data = await response.json();
-          console.log('云端设置响应:', data);
-          
           if (data && data.length > 0 && data[0].value) {
             const settings = JSON.parse(data[0].value);
-            console.log('解析云端设置:', settings);
             cloudSettings = { ...cloudSettings, ...settings };
-          } else {
-            console.log('云端没有保存的设置，使用默认值');
           }
-        } else {
-          console.log('获取云端设置失败:', response.status);
         }
       } catch (err) {
         console.log('获取云端设置出错:', err);
@@ -431,12 +453,13 @@
     async function saveCloudSettings() {
       try {
         const value = JSON.stringify({
+          bgType: cloudSettings.bgType,
           bgImage: cloudSettings.bgImage,
+          bgGif: cloudSettings.bgGif,
+          bgVideo: cloudSettings.bgVideo,
           bgMaskOpacity: cloudSettings.bgMaskOpacity,
           cardOpacity: cloudSettings.cardOpacity
         });
-        
-        console.log('正在保存到云端:', value);
         
         let response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
           method: 'GET',
@@ -461,7 +484,6 @@
             },
             body: JSON.stringify({ value })
           });
-          console.log('云端设置已更新, 状态:', response.status);
         } else {
           response = await fetch(SUPABASE_URL + '/rest/v1/settings', {
             method: 'POST',
@@ -473,11 +495,6 @@
             },
             body: JSON.stringify({ key: 'global', value })
           });
-          console.log('云端设置已创建, 状态:', response.status);
-        }
-        
-        if (!response.ok) {
-          console.log('保存云端设置失败');
         }
       } catch (err) {
         console.log('保存云端设置出错:', err);
@@ -493,9 +510,7 @@
 
     function playTrack(index) {
       const audio = document.getElementById('audio-player');
-      const track = musicTracks[index];
       
-      // 更新播放状态显示
       if (currentTrackIndex >= 0) {
         document.getElementById('track-' + currentTrackIndex + '-status').textContent = '▶';
       }
@@ -503,25 +518,28 @@
       if (currentTrackIndex === index && !audio.paused) {
         audio.pause();
         document.getElementById('track-' + index + '-status').textContent = '▶';
-        isMusicPlaying = false;
         updateMusicToggleButton();
         return;
       }
       
       currentTrackIndex = index;
-      audio.src = track.url;
+      audio.src = musicTracks[index].url;
       audio.volume = document.getElementById('volume-slider').value / 100;
       
       if (!musicMuted) {
         audio.play().catch(e => console.log('播放失败:', e));
-        isMusicPlaying = true;
         document.getElementById('track-' + index + '-status').textContent = '⏸';
       } else {
         document.getElementById('track-' + index + '-status').textContent = '⏸';
       }
       
-      document.getElementById('current-song').textContent = track.name;
       audio.volume = musicMuted ? 0 : document.getElementById('volume-slider').value / 100;
+    }
+
+    // 自动播放下一首
+    function playNextTrack() {
+      const nextIndex = (currentTrackIndex + 1) % musicTracks.length;
+      playTrack(nextIndex);
     }
 
     function toggleMusic() {
@@ -549,11 +567,7 @@
 
     function updateMusicToggleButton() {
       const btn = document.getElementById('music-toggle-btn');
-      if (musicMuted) {
-        btn.textContent = '🔇';
-      } else {
-        btn.textContent = '🔊';
-      }
+      btn.textContent = musicMuted ? '🔇' : '🔊';
     }
 
     function setVolume(value) {
@@ -563,11 +577,10 @@
       }
     }
 
-    // ========== 渲染类型选项 ==========
+    // ========== 类型选项 ==========
     function renderGenreOptions() {
       const container = document.getElementById('genre-group');
       const allGenres = [...defaultGenres, ...customGenres];
-      
       container.innerHTML = allGenres.map(g => 
         `<label><input type="checkbox" name="genre" value="${g.id}"> ${g.name}</label>`
       ).join('');
@@ -576,19 +589,16 @@
     function renderFilterOptions() {
       const select = document.getElementById('genre-filter');
       const allGenres = [...defaultGenres, ...customGenres];
-      
       select.innerHTML = '<option value="">全部类型</option>' + 
         allGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
     }
 
-    // ========== 自定义类型 ==========
     function addCustomGenre() {
       const input = document.getElementById('new-genre');
       const name = input.value.trim();
       if (!name) return;
       
       const id = name.toLowerCase().replace(/\s+/g, '-');
-      
       if (customGenres.find(g => g.id === id)) {
         alert('类型已存在');
         return;
@@ -596,7 +606,6 @@
       
       customGenres.push({ id, name });
       localStorage.setItem('movie-together-genres', JSON.stringify(customGenres));
-      
       input.value = '';
       renderGenreOptions();
       renderFilterOptions();
@@ -613,85 +622,142 @@
       });
     }
 
-    // ========== 实时背景透明度控制 ==========
-    function onBgUrlChange() {
-      const url = document.getElementById('bg-image-url').value;
-      const maskOpacity = document.getElementById('bg-mask-opacity').value;
+    // ========== 背景类型切换 ==========
+    function onBgTypeChange() {
+      const bgType = document.querySelector('input[name="bg-type"]:checked').value;
+      config.bgType = bgType;
       
-      if (url) {
-        applyBackground(url, maskOpacity);
-      }
+      document.getElementById('bg-image-option').style.display = bgType === 'image' ? 'block' : 'none';
+      document.getElementById('bg-gif-option').style.display = bgType === 'gif' ? 'block' : 'none';
+      document.getElementById('bg-video-option').style.display = bgType === 'video' ? 'block' : 'none';
+    }
+
+    // ========== 实时背景控制 ==========
+    function onBgUrlChange() {
+      const bgType = document.querySelector('input[name="bg-type"]:checked').value;
+      let url = '';
+      if (bgType === 'image') url = document.getElementById('bg-image-url').value;
+      else if (bgType === 'gif') url = document.getElementById('bg-gif-url').value;
+      else if (bgType === 'video') url = document.getElementById('bg-video-url').value;
+      
+      if (bgType === 'image') config.bgImage = url;
+      else if (bgType === 'gif') config.bgGif = url;
+      else if (bgType === 'video') config.bgVideo = url;
+      
+      if (url) applyBackground();
     }
 
     function onBgMaskOpacityChange() {
       const value = document.getElementById('bg-mask-opacity').value;
       document.getElementById('bg-mask-opacity-value').textContent = value + '%';
-      
-      const url = document.getElementById('bg-image-url').value || config.bgImage;
-      if (url) {
-        applyBackground(url, value);
-      }
+      applyBackground();
     }
 
     function onCardOpacityChange() {
       const value = document.getElementById('card-opacity').value;
       document.getElementById('card-opacity-value').textContent = value + '%';
       document.documentElement.style.setProperty('--card-bg-opacity', value / 100);
+      updateMusicPanelOpacity();
     }
 
-    // ========== 背景图片 ==========
     function handleBgUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
       
       const reader = new FileReader();
       reader.onload = async function(e) {
-        config.bgImage = e.target.result;
-        config.bgMaskOpacity = document.getElementById('bg-mask-opacity').value;
-        cloudSettings.bgImage = e.target.result;
-        cloudSettings.bgMaskOpacity = config.bgMaskOpacity;
+        const isVideo = file.type.startsWith('video/');
+        const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
         
-        applyBackground(config.bgImage, config.bgMaskOpacity);
+        if (isVideo) {
+          config.bgVideo = e.target.result;
+          config.bgType = 'video';
+          document.getElementById('bg-video-option').style.display = 'block';
+          document.getElementById('bg-image-option').style.display = 'none';
+          document.getElementById('bg-gif-option').style.display = 'none';
+          document.querySelector('input[name="bg-type"][value="video"]').checked = true;
+        } else if (isGif) {
+          config.bgGif = e.target.result;
+          config.bgType = 'gif';
+          document.getElementById('bg-gif-option').style.display = 'block';
+          document.getElementById('bg-image-option').style.display = 'none';
+          document.getElementById('bg-video-option').style.display = 'none';
+          document.querySelector('input[name="bg-type"][value="gif"]').checked = true;
+        } else {
+          config.bgImage = e.target.result;
+          config.bgType = 'image';
+        }
+        
+        config.bgMaskOpacity = document.getElementById('bg-mask-opacity').value;
+        
+        applyBackground();
         localStorage.setItem('movie-together-config', JSON.stringify(config));
         
         await saveCloudSettings();
-        
-        alert('背景图片已应用并同步到云端！');
+        alert('背景已应用并同步到云端！');
       };
       reader.readAsDataURL(file);
     }
 
     function saveBackgroundSettings() {
-      const url = document.getElementById('bg-image-url').value;
+      const bgType = document.querySelector('input[name="bg-type"]:checked').value;
       const maskOpacity = document.getElementById('bg-mask-opacity').value;
       const cardOpacity = document.getElementById('card-opacity').value;
       
-      if (url) {
-        config.bgImage = url;
-        cloudSettings.bgImage = url;
-      }
-      
+      config.bgType = bgType;
+      config.bgImage = document.getElementById('bg-image-url').value;
+      config.bgGif = document.getElementById('bg-gif-url').value;
+      config.bgVideo = document.getElementById('bg-video-url').value;
       config.bgMaskOpacity = maskOpacity;
-      cloudSettings.bgMaskOpacity = maskOpacity;
       config.cardOpacity = cardOpacity;
-      cloudSettings.cardOpacity = cardOpacity;
       
-      applyBackground(cloudSettings.bgImage, cloudSettings.bgMaskOpacity);
+      cloudSettings = { ...config };
       
+      applyBackground();
       localStorage.setItem('movie-together-config', JSON.stringify(config));
       saveCloudSettings();
       
       alert('设置已保存并同步到云端！\n另一台设备刷新页面即可看到');
     }
 
-    function applyBackground(url, maskOpacity) {
-      if (!url) return;
+    function applyBackground() {
+      const maskOpacity = document.getElementById('bg-mask-opacity').value;
+      const bgType = config.bgType;
       
-      document.body.style.backgroundImage = `url(${url})`;
-      document.body.style.backgroundSize = 'cover';
-      document.body.style.backgroundPosition = 'center';
-      document.body.style.backgroundAttachment = 'fixed';
+      // 移除旧的背景元素
+      const oldBg = document.getElementById('dynamic-bg');
+      if (oldBg) oldBg.remove();
       
+      const oldVideo = document.getElementById('dynamic-video');
+      if (oldVideo) oldVideo.remove();
+      
+      let bgUrl = '';
+      if (bgType === 'image') bgUrl = config.bgImage;
+      else if (bgType === 'gif') bgUrl = config.bgGif;
+      else if (bgType === 'video') bgUrl = config.bgVideo;
+      
+      if (!bgUrl) return;
+      
+      if (bgType === 'video') {
+        // 视频背景
+        const video = document.createElement('video');
+        video.id = 'dynamic-video';
+        video.src = bgUrl;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:-2;';
+        document.body.insertBefore(video, document.body.firstChild);
+      } else {
+        // 图片/GIF背景
+        document.body.style.backgroundImage = `url(${bgUrl})`;
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center';
+        document.body.style.backgroundAttachment = 'fixed';
+      }
+      
+      // 遮罩层
       let overlay = document.getElementById('bg-overlay');
       if (!overlay) {
         overlay = document.createElement('div');
@@ -714,7 +780,6 @@
       
       const headers = ['电影名称', '观看日期', '时长(分钟)', '类型', '记录人', '添加时间'];
       const rows = movies.map(m => {
-        const watchDate = new Date(m.watch_date);
         const createdAt = m.created_at ? new Date(m.created_at) : '';
         return [
           m.movie_name,
@@ -753,7 +818,7 @@
       alert('导出成功！文件已下载');
     }
 
-    // ========== 管理员登录 ==========
+    // ========== 管理员 ==========
     function login() {
       const password = document.getElementById('admin-password').value;
       if (password === config.adminPassword) {
@@ -761,7 +826,6 @@
         document.getElementById('login-status').style.display = 'none';
         document.getElementById('logged-in-status').style.display = 'block';
         alert('登录成功！现在点击电影卡片可以编辑了');
-        
         renderHome();
         renderMovies();
       } else {
@@ -774,7 +838,6 @@
       document.getElementById('login-status').style.display = 'block';
       document.getElementById('logged-in-status').style.display = 'none';
       document.getElementById('admin-password').value = '';
-      
       renderHome();
       renderMovies();
     }
@@ -985,6 +1048,7 @@
       document.getElementById('stat-hours').textContent = Math.floor(totalMinutes / 60);
       document.getElementById('stat-avg').textContent = movies.length ? Math.round(totalMinutes / movies.length) : 0;
 
+      // 类型统计
       const genreCounts = {};
       movies.forEach(m => {
         if (m.genre) {
@@ -993,12 +1057,19 @@
           });
         }
       });
+      
+      // 绘制扇形图
+      drawPieChart(genreCounts);
+      
+      // 列表
       const colors = ['#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#74B9FF', '#A29BFE', '#FD79A8', '#00CEC9'];
       document.getElementById('genre-chart').innerHTML = Object.entries(genreCounts).map((g, i) => {
         const [genre, count] = g;
-        return '<div class="genre-item"><span class="genre-dot" style="background:' + colors[i % colors.length] + '"></span><span>' + getGenreName(genre) + '</span><span class="genre-count">' + count + '</span></div>';
+        const percentage = movies.length ? Math.round(count / movies.length * 100) : 0;
+        return '<div class="genre-item"><span class="genre-dot" style="background:' + colors[i % colors.length] + '"></span><span>' + getGenreName(genre) + '</span><span class="genre-count">' + count + ' (' + percentage + '%)</span></div>';
       }).join('') || '<p class="empty-state">暂无数据</p>';
 
+      // 月度统计
       const monthlyCounts = {};
       movies.forEach(m => { const k = getMonthKey(m.watch_date); monthlyCounts[k] = (monthlyCounts[k] || 0) + 1; });
       const sortedMonths = Object.keys(monthlyCounts).sort().slice(-6);
@@ -1008,6 +1079,61 @@
         const h = (c / maxCount) * 100;
         return '<div class="month-bar" style="height:' + h + '%" data-count="' + c + '"></div>';
       }).join('');
+    }
+
+    // 绘制扇形图
+    function drawPieChart(genreCounts) {
+      const canvas = document.getElementById('pie-chart');
+      const ctx = canvas.getContext('2d');
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = 80;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const entries = Object.entries(genreCounts);
+      if (entries.length === 0) {
+        // 绘制空圆
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = '#E0E0E0';
+        ctx.fill();
+        ctx.fillStyle = '#636E72';
+        ctx.font = '14px Noto Sans SC';
+        ctx.textAlign = 'center';
+        ctx.fillText('暂无数据', centerX, centerY);
+        return;
+      }
+      
+      const total = entries.reduce((sum, [, count]) => sum + count, 0);
+      const colors = ['#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#74B9FF', '#A29BFE', '#FD79A8', '#00CEC9'];
+      
+      let startAngle = -Math.PI / 2;
+      
+      entries.forEach(([, count], i) => {
+        const sliceAngle = (count / total) * 2 * Math.PI;
+        
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        
+        // 添加白色间隔
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        startAngle += sliceAngle;
+      });
+      
+      // 中心圆
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 40, 0, 2 * Math.PI);
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      ctx.fillStyle = isDark ? '#1a1a2e' : '#F8F9FA';
+      ctx.fill();
     }
 
     // ========== 弹窗操作 ==========
@@ -1096,7 +1222,6 @@
       alert(saved ? (id ? '更新成功！' : '添加成功！') : '保存成功！（本地模式）');
     }
 
-    // 启动
     init();
   </script>
 </body>
