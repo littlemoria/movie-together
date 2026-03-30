@@ -12,6 +12,7 @@
     <header class="header">
       <h1 id="page-title">第 X 次一起看</h1>
       <p class="subtitle" id="page-subtitle">记录我们的观影时光</p>
+      <button class="settings-btn" id="settings-btn" onclick="showSettings()">⚙️</button>
     </header>
 
     <main id="main-content">
@@ -35,9 +36,7 @@
 
         <div class="recent-section">
           <h3>最近观看</h3>
-          <div id="recent-movies" class="movie-list">
-            <p class="empty-state">还没有记录，开始你们的第一次吧～</p>
-          </div>
+          <div id="recent-movies" class="movie-list"></div>
         </div>
 
         <button class="btn-primary" id="add-btn">+ 添加观影记录</button>
@@ -99,11 +98,13 @@
       </section>
     </main>
 
-    <div id="add-modal" class="modal">
+    <!-- 添加/编辑弹窗 -->
+    <div id="movie-modal" class="modal">
       <div class="modal-content">
         <span class="close" id="close-modal">&times;</span>
-        <h2>添加观影记录</h2>
-        <form id="add-form">
+        <h2 id="modal-title">添加观影记录</h2>
+        <form id="movie-form">
+          <input type="hidden" id="movie-id">
           <div class="form-group">
             <label>电影名称 *</label>
             <input type="text" id="movie-name" required placeholder="输入电影名">
@@ -117,19 +118,18 @@
             <input type="number" id="duration" placeholder="如：120">
           </div>
           <div class="form-group">
-            <label>类型</label>
-            <select id="genre">
-              <option value="">选择类型</option>
-              <option value="action">动作</option>
-              <option value="romance">爱情</option>
-              <option value="comedy">喜剧</option>
-              <option value="thriller">惊悚</option>
-              <option value="sci-fi">科幻</option>
-              <option value="drama">剧情</option>
-              <option value="horror">恐怖</option>
-              <option value="animation">动画</option>
-              <option value="documentary">纪录片</option>
-            </select>
+            <label>类型（多选）</label>
+            <div class="checkbox-group" id="genre-group">
+              <label><input type="checkbox" name="genre" value="action"> 动作</label>
+              <label><input type="checkbox" name="genre" value="romance"> 爱情</label>
+              <label><input type="checkbox" name="genre" value="comedy"> 喜剧</label>
+              <label><input type="checkbox" name="genre" value="thriller"> 惊悚</label>
+              <label><input type="checkbox" name="genre" value="sci-fi"> 科幻</label>
+              <label><input type="checkbox" name="genre" value="drama"> 剧情</label>
+              <label><input type="checkbox" name="genre" value="horror"> 恐怖</label>
+              <label><input type="checkbox" name="genre" value="animation"> 动画</label>
+              <label><input type="checkbox" name="genre" value="documentary"> 纪录片</label>
+            </div>
           </div>
           <div class="form-group">
             <label>记录人</label>
@@ -137,6 +137,47 @@
           </div>
           <button type="submit" class="btn-primary">保存</button>
         </form>
+      </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div id="settings-modal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="hideSettings()">&times;</span>
+        <h2>设置</h2>
+        
+        <!-- 主题设置 -->
+        <div class="settings-section">
+          <h3>主题</h3>
+          <div class="theme-toggle">
+            <button class="theme-btn" data-theme="light" onclick="setTheme('light')">☀️ 白天</button>
+            <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')">🌙 夜间</button>
+          </div>
+        </div>
+
+        <!-- 背景设置 -->
+        <div class="settings-section">
+          <h3>背景图片</h3>
+          <input type="text" id="bg-image-url" placeholder="输入图片URL" oninput="updateBgPreview()">
+          <input type="range" id="bg-opacity" min="0" max="100" value="30" oninput="updateBgPreview()">
+          <label>背景不透明度: <span id="opacity-value">30%</span></label>
+          <button class="btn-small" onclick="applyBg()">应用背景</button>
+          <button class="btn-small" onclick="clearBg()">清除背景</button>
+        </div>
+
+        <!-- 管理员设置 -->
+        <div class="settings-section" id="admin-section">
+          <h3>管理员</h3>
+          <div id="login-status">
+            <p>未登录</p>
+            <input type="password" id="admin-password" placeholder="输入管理员密码">
+            <button class="btn-primary" onclick="login()">登录</button>
+          </div>
+          <div id="logged-in-status" style="display:none;">
+            <p>✅ 已登录</p>
+            <button class="btn-small" onclick="logout()">退出登录</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -161,12 +202,19 @@
   </nav>
 
   <script>
-    // ========== Supabase 配置 ==========
+    // ========== 配置 ==========
     const SUPABASE_URL = 'https://zbghffgydxzufzfuozwq.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc';
 
-    // ========== 数据 ==========
+    // ========== 状态 ==========
     let movies = [];
+    let isAdmin = false;
+    let config = {
+      theme: 'light',
+      bgImage: '',
+      bgOpacity: 30,
+      adminPassword: 'movie2024'
+    };
 
     // 成就定义
     const achievements = [
@@ -174,13 +222,13 @@
       { id: 'tenth_watch', name: '十次之约', desc: '第10次一起看', icon: '🎬', condition: (m) => m.length >= 10 },
       { id: 'twenty_five', name: '银婚纪念', desc: '第25次一起看', icon: '💕', condition: (m) => m.length >= 25 },
       { id: 'fifty', name: '半百之旅', desc: '第50次一起看', icon: '🌟', condition: (m) => m.length >= 50 },
-      { id: 'hundred', name: '百次辉煌', desc: '第100次一起看', icon: '👑', condition: (m) => m.length >= 100 },
+      { id: 'hundred', name: '百次辉煌', desc: '第100次一起看', icon: '👑', condition: (m) => m.length >= 50 },
       { id: 'ten_hours', name: '十小时陪伴', desc: '累计10小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 600 },
       { id: 'fifty_hours', name: '五十小时', desc: '累计50小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 3000 },
       { id: 'hundred_hours', name: '百小时里程碑', desc: '累计100小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 6000 },
-      { id: 'romance_lover', name: '爱情片达人', desc: '看过10部爱情片', icon: '💘', condition: (m) => m.filter(x => x.genre === 'romance').length >= 10 },
-      { id: 'action_hero', name: '动作片英雄', desc: '看过10部动作片', icon: '💪', condition: (m) => m.filter(x => x.genre === 'action').length >= 10 },
-      { id: 'comedy_king', name: '喜剧之王', desc: '看过10部喜剧', icon: '😂', condition: (m) => m.filter(x => x.genre === 'comedy').length >= 10 },
+      { id: 'romance_lover', name: '爱情片达人', desc: '看过10部爱情片', icon: '💘', condition: (m) => m.filter(x => (x.genre || '').includes('romance')).length >= 10 },
+      { id: 'action_hero', name: '动作片英雄', desc: '看过10部动作片', icon: '💪', condition: (m) => m.filter(x => (x.genre || '').includes('action')).length >= 10 },
+      { id: 'comedy_king', name: '喜剧之王', desc: '看过10部喜剧', icon: '😂', condition: (m) => m.filter(x => (x.genre || '').includes('comedy')).length >= 10 },
     ];
 
     const genreMap = {
@@ -188,50 +236,174 @@
       'sci-fi': '科幻', 'drama': '剧情', 'horror': '恐怖', 'animation': '动画', 'documentary': '纪录片'
     };
 
+    // ========== 初始化 ==========
+    function init() {
+      // 加载配置
+      const savedConfig = localStorage.getItem('movie-together-config');
+      if (savedConfig) {
+        config = { ...config, ...JSON.parse(savedConfig) };
+      }
+      
+      // 应用主题
+      setTheme(config.theme);
+      
+      // 应用背景
+      if (config.bgImage) {
+        applyBackground(config.bgImage, config.bgOpacity);
+      }
+
+      // 初始化日期
+      document.getElementById('watch-date').valueAsDate = new Date();
+      
+      // 绑定导航事件
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.onclick = () => navigate(btn.dataset.page);
+      });
+
+      // 绑定弹窗事件
+      document.getElementById('add-btn').onclick = () => showMovieModal();
+      document.getElementById('close-modal').onclick = () => hideMovieModal();
+      document.getElementById('movie-modal').onclick = (e) => { if (e.target.id === 'movie-modal') hideMovieModal(); };
+      
+      // 绑定表单提交
+      document.getElementById('movie-form').onsubmit = handleMovieSubmit;
+
+      // 加载数据
+      fetchMovies().then(() => renderHome());
+    }
+
+    // ========== 主题 ==========
+    function setTheme(theme) {
+      config.theme = theme;
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('movie-together-config', JSON.stringify(config));
+      
+      // 更新按钮状态
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === theme);
+      });
+    }
+
+    // ========== 背景 ==========
+    function updateBgPreview() {
+      const opacity = document.getElementById('bg-opacity').value;
+      document.getElementById('opacity-value').textContent = opacity + '%';
+    }
+
+    function applyBg() {
+      const url = document.getElementById('bg-image-url').value;
+      const opacity = document.getElementById('bg-opacity').value;
+      if (url) {
+        config.bgImage = url;
+        config.bgOpacity = opacity;
+        applyBackground(url, opacity);
+        localStorage.setItem('movie-together-config', JSON.stringify(config));
+      }
+    }
+
+    function applyBackground(url, opacity) {
+      document.body.style.backgroundImage = `url(${url})`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
+      
+      // 创建遮罩
+      let overlay = document.getElementById('bg-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'bg-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;pointer-events:none;';
+        document.body.insertBefore(overlay, document.body.firstChild);
+      }
+      overlay.style.backgroundColor = `rgba(248,249,250,${opacity/100})`;
+      
+      // 暗色主题时用深色遮罩
+      if (document.body.getAttribute('data-theme') === 'dark') {
+        overlay.style.backgroundColor = `rgba(45,52,54,${opacity/100})`;
+      }
+    }
+
+    function clearBg() {
+      config.bgImage = '';
+      localStorage.setItem('movie-together-config', JSON.stringify(config));
+      document.body.style.backgroundImage = '';
+      const overlay = document.getElementById('bg-overlay');
+      if (overlay) overlay.style.backgroundColor = 'transparent';
+    }
+
+    // ========== 管理员登录 ==========
+    function login() {
+      const password = document.getElementById('admin-password').value;
+      if (password === config.adminPassword) {
+        isAdmin = true;
+        document.getElementById('login-status').style.display = 'none';
+        document.getElementById('logged-in-status').style.display = 'block';
+        alert('登录成功！');
+      } else {
+        alert('密码错误');
+      }
+    }
+
+    function logout() {
+      isAdmin = false;
+      document.getElementById('login-status').style.display = 'block';
+      document.getElementById('logged-in-status').style.display = 'none';
+      document.getElementById('admin-password').value = '';
+    }
+
     // ========== Supabase API ==========
     async function fetchMovies() {
       try {
         const response = await fetch(SUPABASE_URL + '/rest/v1/movies?order=watch_date.desc', {
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': 'Bearer ' + SUPABASE_KEY
-          }
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
         });
         if (!response.ok) throw new Error('Failed to fetch');
         movies = await response.json();
-        console.log('Loaded', movies.length, 'movies from Supabase');
       } catch (err) {
         console.error('Supabase error:', err);
-        // 尝试从 localStorage 加载
         const saved = localStorage.getItem('movies');
         if (saved) movies = JSON.parse(saved);
-        console.log('Using local data:', movies.length, 'movies');
       }
     }
 
-    async function addMovieToSupabase(movieData) {
+    async function saveMovie(movieData, id = null) {
       try {
-        const response = await fetch(SUPABASE_URL + '/rest/v1/movies', {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': 'Bearer ' + SUPABASE_KEY,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify(movieData)
-        });
-        if (!response.ok) throw new Error('Failed to add');
-        
-        // 重新加载数据以获取最新列表
+        if (id) {
+          // 更新
+          await fetch(SUPABASE_URL + '/rest/v1/movies?id=eq.' + id, {
+            method: 'PATCH',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(movieData)
+          });
+        } else {
+          // 新增
+          await fetch(SUPABASE_URL + '/rest/v1/movies', {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(movieData)
+          });
+        }
         await fetchMovies();
         return true;
       } catch (err) {
-        console.error('Add error:', err);
-        // 降级到本地存储
-        movieData.id = Date.now();
-        movieData.created_at = new Date().toISOString();
-        movies.unshift(movieData);
+        console.error('Save error:', err);
+        // 降级到本地
+        if (id) {
+          const idx = movies.findIndex(m => m.id === id);
+          if (idx >= 0) movies[idx] = { ...movies[idx], ...movieData };
+        } else {
+          movieData.id = Date.now();
+          movies.unshift(movieData);
+        }
         localStorage.setItem('movies', JSON.stringify(movies));
         return false;
       }
@@ -250,6 +422,11 @@
     function getMonthKey(dateStr) {
       const date = new Date(dateStr);
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function getGenreNames(genres) {
+      if (!genres) return '';
+      return genres.split(',').map(g => genreMap[g] || g).filter(Boolean).join(', ');
     }
 
     // ========== 页面导航 ==========
@@ -275,52 +452,51 @@
       if (page === 'stats') renderStats();
     }
 
-    // ========== 首页 ==========
+    // ========== 渲染函数 ==========
     function renderHome() {
       const sorted = [...movies].sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
       const totalMinutes = getTotalMinutes(movies);
-      const hours = Math.floor(totalMinutes / 60);
-      const mins = totalMinutes % 60;
 
       document.getElementById('total-movies').textContent = movies.length;
-      document.getElementById('total-hours').textContent = hours;
-      document.getElementById('total-minutes').textContent = mins;
-
-      // 更新标题
+      document.getElementById('total-hours').textContent = Math.floor(totalMinutes / 60);
+      document.getElementById('total-minutes').textContent = totalMinutes % 60;
       document.getElementById('page-title').textContent = '第 ' + movies.length + ' 次一起看';
 
       const recentDiv = document.getElementById('recent-movies');
       if (sorted.length === 0) {
         recentDiv.innerHTML = '<p class="empty-state">还没有记录，开始你们的第一次吧～</p>';
       } else {
-        recentDiv.innerHTML = sorted.slice(0, 3).map(m => {
-          return '<div class="movie-card"><div class="movie-info"><div class="movie-title">' + m.movie_name + '</div><div class="movie-meta">' + formatDate(m.watch_date) + ' · ' + (m.duration_minutes || '?') + '分钟</div></div>' + (m.genre ? '<span class="movie-badge">' + (genreMap[m.genre] || m.genre) + '</span>' : '') + '</div>';
-        }).join('');
+        recentDiv.innerHTML = sorted.slice(0, 3).map(m => renderMovieCard(m)).join('');
       }
     }
 
-    // ========== 影单 ==========
+    function renderMovieCard(m) {
+      const genreHtml = m.genre ? '<span class="movie-badge">' + getGenreNames(m.genre) + '</span>' : '';
+      return '<div class="movie-card" data-id="' + m.id + '">' +
+        '<div class="movie-info" onclick="editMovie(' + m.id + ')">' +
+        '<div class="movie-title">' + m.movie_name + '</div>' +
+        '<div class="movie-meta">' + formatDate(m.watch_date) + ' · ' + (m.duration_minutes || '?') + '分钟' + (m.created_by ? ' · ' + m.created_by : '') + '</div></div>' +
+        genreHtml + '</div>';
+    }
+
     function renderMovies() {
       const search = document.getElementById('search-input').value.toLowerCase();
       const genre = document.getElementById('genre-filter').value;
       let filtered = [...movies].sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
       
       if (search) filtered = filtered.filter(m => m.movie_name.toLowerCase().includes(search));
-      if (genre) filtered = filtered.filter(m => m.genre === genre);
+      if (genre) filtered = filtered.filter(m => (m.genre || '').includes(genre));
 
       const container = document.getElementById('all-movies');
       if (filtered.length === 0) {
         container.innerHTML = '<p class="empty-state">没有找到匹配的电影</p>';
       } else {
-        container.innerHTML = filtered.map(m => {
-          return '<div class="movie-card"><div class="movie-info"><div class="movie-title">' + m.movie_name + '</div><div class="movie-meta">' + formatDate(m.watch_date) + ' · ' + (m.duration_minutes || '?') + '分钟' + (m.created_by ? ' · ' + m.created_by : '') + '</div></div>' + (m.genre ? '<span class="movie-badge">' + (genreMap[m.genre] || m.genre) + '</span>' : '') + '</div>';
-        }).join('');
+        container.innerHTML = filtered.map(m => renderMovieCard(m)).join('');
       }
     }
 
     function filterMovies() { renderMovies(); }
 
-    // ========== 成就 ==========
     function renderAchievements() {
       const container = document.getElementById('achievements-grid');
       container.innerHTML = achievements.map(a => {
@@ -332,19 +508,21 @@
       }).join('');
     }
 
-    // ========== 统计 ==========
     function renderStats() {
       const totalMinutes = getTotalMinutes(movies);
-      const hours = Math.floor(totalMinutes / 60);
-      const avgMinutes = movies.length ? Math.round(totalMinutes / movies.length) : 0;
-
       document.getElementById('stat-total').textContent = movies.length;
-      document.getElementById('stat-hours').textContent = hours;
-      document.getElementById('stat-avg').textContent = avgMinutes;
+      document.getElementById('stat-hours').textContent = Math.floor(totalMinutes / 60);
+      document.getElementById('stat-avg').textContent = movies.length ? Math.round(totalMinutes / movies.length) : 0;
 
       // 类型分布
       const genreCounts = {};
-      movies.forEach(m => { if (m.genre) genreCounts[m.genre] = (genreCounts[m.genre] || 0) + 1; });
+      movies.forEach(m => {
+        if (m.genre) {
+          m.genre.split(',').forEach(g => {
+            if (g) genreCounts[g] = (genreCounts[g] || 0) + 1;
+          });
+        }
+      });
       const colors = ['#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#74B9FF', '#A29BFE', '#FD79A8', '#00CEC9'];
       document.getElementById('genre-chart').innerHTML = Object.entries(genreCounts).map((g, i) => {
         const [genre, count] = g;
@@ -363,50 +541,88 @@
       }).join('');
     }
 
-    // ========== 弹窗 ==========
-    const modal = document.getElementById('add-modal');
-    document.getElementById('add-btn').onclick = () => modal.classList.add('active');
-    document.getElementById('close-modal').onclick = () => modal.classList.remove('active');
-    modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('active'); };
+    // ========== 弹窗操作 ==========
+    function showMovieModal(movie = null) {
+      const modal = document.getElementById('movie-modal');
+      const form = document.getElementById('movie-form');
+      
+      if (movie) {
+        document.getElementById('modal-title').textContent = '编辑观影记录';
+        document.getElementById('movie-id').value = movie.id;
+        document.getElementById('movie-name').value = movie.movie_name;
+        document.getElementById('watch-date').value = movie.watch_date;
+        document.getElementById('duration').value = movie.duration_minutes || '';
+        document.getElementById('created-by').value = movie.created_by || '';
+        
+        // 设置类型多选
+        const genres = (movie.genre || '').split(',');
+        document.querySelectorAll('input[name="genre"]').forEach(cb => {
+          cb.checked = genres.includes(cb.value);
+        });
+      } else {
+        document.getElementById('modal-title').textContent = '添加观影记录';
+        form.reset();
+        document.getElementById('movie-id').value = '';
+        document.getElementById('watch-date').valueAsDate = new Date();
+        document.querySelectorAll('input[name="genre"]').forEach(cb => cb.checked = false);
+      }
+      
+      modal.classList.add('active');
+    }
 
-    // 初始化日期
-    document.getElementById('watch-date').valueAsDate = new Date();
+    function hideMovieModal() {
+      document.getElementById('movie-modal').classList.remove('active');
+    }
 
-    // ========== 提交表单 ==========
-    document.getElementById('add-form').onsubmit = async (e) => {
+    function showSettings() {
+      document.getElementById('settings-modal').classList.add('active');
+    }
+
+    function hideSettings() {
+      document.getElementById('settings-modal').classList.remove('active');
+    }
+
+    function editMovie(id) {
+      if (!isAdmin) {
+        alert('请先在设置中登录管理员账号才能编辑');
+        showSettings();
+        return;
+      }
+      const movie = movies.find(m => m.id === id);
+      if (movie) showMovieModal(movie);
+    }
+
+    async function handleMovieSubmit(e) {
       e.preventDefault();
+      
+      // 获取多选类型
+      const genres = [];
+      document.querySelectorAll('input[name="genre"]:checked').forEach(cb => {
+        genres.push(cb.value);
+      });
       
       const movieData = {
         movie_name: document.getElementById('movie-name').value,
         watch_date: document.getElementById('watch-date').value,
         duration_minutes: parseInt(document.getElementById('duration').value) || null,
-        genre: document.getElementById('genre').value || null,
+        genre: genres.join(','),
         created_by: document.getElementById('created-by').value || 'TA'
       };
-
-      const added = await addMovieToSupabase(movieData);
       
-      modal.classList.remove('active');
-      document.getElementById('add-form').reset();
-      document.getElementById('watch-date').valueAsDate = new Date();
+      const id = document.getElementById('movie-id').value;
+      const saved = await saveMovie(movieData, id || null);
       
+      hideMovieModal();
       renderHome();
       renderMovies();
       renderAchievements();
       renderStats();
       
-      alert(added ? '添加成功！' : '添加成功！（本地模式 - 数据已保存）');
-    };
+      alert(saved ? (id ? '更新成功！' : '添加成功！') : '保存成功！（本地模式）');
+    }
 
-    // ========== 绑定导航事件 ==========
-    document.querySelectorAll('.nav-item').forEach(btn => {
-      btn.onclick = () => navigate(btn.dataset.page);
-    });
-
-    // ========== 初始化 ==========
-    fetchMovies().then(() => {
-      renderHome();
-    });
+    // 启动
+    init();
   </script>
 </body>
 </html>
