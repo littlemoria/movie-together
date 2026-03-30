@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 X 次一起看</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部 -->
+    <header class="header">
+      <h1 id="page-title">第 X 次一起看</h1>
+      <p class="subtitle" id="page-subtitle">记录我们的观影时光</p>
+    </header>
+
+    <!-- 内容区 -->
+    <main id="main-content">
+      <!-- 首页内容 -->
+      <section id="home-page" class="page active">
+        <div class="hero-card">
+          <div class="watch-count">
+            <span class="count-number" id="total-movies">0</span>
+            <span class="count-label">次一起看</span>
+          </div>
+          <div class="hero-stats">
+            <div class="stat-item">
+              <span class="stat-value" id="total-hours">0</span>
+              <span class="stat-label">小时</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="total-minutes">0</span>
+              <span class="stat-label">分钟</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="recent-section">
+          <h3>最近观看</h3>
+          <div id="recent-movies" class="movie-list">
+            <p class="empty-state">还没有记录，开始你们的第一次吧～</p>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="showAddModal()">+ 添加观影记录</button>
+      </section>
+
+      <!-- 影单页面 -->
+      <section id="movies-page" class="page">
+        <div class="search-bar">
+          <input type="text" id="search-input" placeholder="搜索电影..." oninput="filterMovies()">
+        </div>
+        <div class="filter-bar">
+          <select id="genre-filter" onchange="filterMovies()">
+            <option value="">全部类型</option>
+            <option value="action">动作</option>
+            <option value="romance">爱情</option>
+            <option value="comedy">喜剧</option>
+            <option value="thriller">惊悚</option>
+            <option value="sci-fi">科幻</option>
+            <option value="drama">剧情</option>
+            <option value="horror">恐怖</option>
+            <option value="animation">动画</option>
+            <option value="documentary">纪录片</option>
+          </select>
+        </div>
+        <div id="all-movies" class="movie-list"></div>
+      </section>
+
+      <!-- 成就页面 -->
+      <section id="achievements-page" class="page">
+        <div id="achievements-grid" class="achievements-grid"></div>
+      </section>
+
+      <!-- 统计页面 -->
+      <section id="stats-page" class="page">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3>累计观看</h3>
+            <p class="big-number" id="stat-total">0</p>
+            <p>部电影</p>
+          </div>
+          <div class="stat-card">
+            <h3>总时长</h3>
+            <p class="big-number" id="stat-hours">0</p>
+            <p>小时</p>
+          </div>
+          <div class="stat-card">
+            <h3>平均时长</h3>
+            <p class="big-number" id="stat-avg">0</p>
+            <p>分钟/部</p>
+          </div>
+        </div>
+        
+        <div class="chart-section">
+          <h3>类型分布</h3>
+          <div id="genre-chart" class="genre-chart"></div>
+        </div>
+
+        <div class="chart-section">
+          <h3>月度观看</h3>
+          <div id="monthly-chart" class="monthly-chart"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 添加记录弹窗 -->
+    <div id="add-modal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="hideAddModal()">&times;</span>
+        <h2>添加观影记录</h2>
+        <form id="add-form" onsubmit="addMovie(event)">
+          <div class="form-group">
+            <label>电影名称 *</label>
+            <input type="text" id="movie-name" required placeholder="输入电影名">
+            <button type="button" class="btn-small" onclick="searchMovie()">自动获取信息</button>
+          </div>
+          <div id="movie-info" class="movie-info" style="display: none;">
+            <p id="movie-duration"></p>
+            <p id="movie-genre"></p>
+          </div>
+          <div class="form-group">
+            <label>观看日期 *</label>
+            <input type="date" id="watch-date" required>
+          </div>
+          <div class="form-group">
+            <label>时长（分钟）</label>
+            <input type="number" id="duration" placeholder="如：120">
+          </div>
+          <div class="form-group">
+            <label>类型</label>
+            <select id="genre">
+              <option value="">选择类型</option>
+              <option value="action">动作</option>
+              <option value="romance">爱情</option>
+              <option value="comedy">喜剧</option>
+              <option value="thriller">惊悚</option>
+              <option value="sci-fi">科幻</option>
+              <option value="drama">剧情</option>
+              <option value="horror">恐怖</option>
+              <option value="animation">动画</option>
+              <option value="documentary">纪录片</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>记录人</label>
+            <input type="text" id="created-by" placeholder="谁记录的？">
+          </div>
+          <button type="submit" class="btn-primary">保存</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部导航 -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-page="home" onclick="navigate('home')">
+      <span class="nav-icon">🏠</span>
+      <span>首页</span>
+    </button>
+    <button class="nav-item" data-page="movies" onclick="navigate('movies')">
+      <span class="nav-icon">📜</span>
+      <span>影单</span>
+    </button>
+    <button class="nav-item" data-page="achievements" onclick="navigate('achievements')">
+      <span class="nav-icon">🏆</span>
+      <span>成就</span>
+    </button>
+    <button class="nav-item" data-page="stats" onclick="navigate('stats')">
+      <span class="nav-icon">📊</span>
+      <span>统计</span>
+    </button>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
