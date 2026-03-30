@@ -918,3 +918,150 @@ body {
   flex: 1;
   accent-color: var(--accent);
 }
+
+/* 头部按钮组 */
+.header-buttons {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.music-btn,
+.settings-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.music-btn {
+  background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+  color: white;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+}
+
+.settings-btn {
+  background: var(--card-bg);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+}
+
+.music-btn:hover,
+.settings-btn:hover {
+  transform: scale(1.1);
+}
+
+.music-btn.active {
+  animation: music-pulse 2s infinite;
+}
+
+@keyframes music-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(108, 92, 231, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(108, 92, 231, 0); }
+}
+
+/* 音乐面板 */
+.music-panel {
+  position: fixed;
+  top: 70px;
+  right: 16px;
+  width: 280px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-color);
+}
+
+.music-panel.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.music-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 500;
+}
+
+.music-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-light);
+  cursor: pointer;
+}
+
+.music-panel-content {
+  padding: 12px;
+}
+
+.music-panel-content .music-track {
+  background: var(--bg);
+}
+
+[data-theme="dark"] .music-panel-content .music-track {
+  background: #1a1a2e;
+}
+
+.music-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.music-volume-row .music-toggle {
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+}
+
+.music-volume-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+/* 透明度设置优化 */
+.opacity-control {
+  margin: 16px 0;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.opacity-control label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.opacity-control input[type="range"] {
+  width: 100%;
+  margin-bottom: 6px;
+  accent-color: var(--accent);
+}
+
+.setting-tip {
+  font-size: 12px;
+  color: var(--text-light);
+  margin: 4px 0 0;
+}
