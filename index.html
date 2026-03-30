@@ -43,7 +43,7 @@
           </div>
         </div>
 
-        <button class="btn-primary" onclick="showAddModal()">+ 添加观影记录</button>
+        <button class="btn-primary" id="add-btn">+ 添加观影记录</button>
       </section>
 
       <!-- 影单页面 -->
@@ -108,17 +108,12 @@
     <!-- 添加记录弹窗 -->
     <div id="add-modal" class="modal">
       <div class="modal-content">
-        <span class="close" onclick="hideAddModal()">&times;</span>
+        <span class="close" id="close-modal">&times;</span>
         <h2>添加观影记录</h2>
-        <form id="add-form" onsubmit="addMovie(event)">
+        <form id="add-form">
           <div class="form-group">
             <label>电影名称 *</label>
             <input type="text" id="movie-name" required placeholder="输入电影名">
-            <button type="button" class="btn-small" onclick="searchMovie()">自动获取信息</button>
-          </div>
-          <div id="movie-info" class="movie-info" style="display: none;">
-            <p id="movie-duration"></p>
-            <p id="movie-genre"></p>
           </div>
           <div class="form-group">
             <label>观看日期 *</label>
@@ -155,25 +150,267 @@
 
   <!-- 底部导航 -->
   <nav class="bottom-nav">
-    <button class="nav-item active" data-page="home" onclick="navigate('home')">
+    <button class="nav-item active" data-page="home">
       <span class="nav-icon">🏠</span>
       <span>首页</span>
     </button>
-    <button class="nav-item" data-page="movies" onclick="navigate('movies')">
+    <button class="nav-item" data-page="movies">
       <span class="nav-icon">📜</span>
       <span>影单</span>
     </button>
-    <button class="nav-item" data-page="achievements" onclick="navigate('achievements')">
+    <button class="nav-item" data-page="achievements">
       <span class="nav-icon">🏆</span>
       <span>成就</span>
     </button>
-    <button class="nav-item" data-page="stats" onclick="navigate('stats')">
+    <button class="nav-item" data-page="stats">
       <span class="nav-icon">📊</span>
       <span>统计</span>
     </button>
   </nav>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js"></script>
+  <script>
+    // ========== Supabase 配置 ==========
+    const SUPABASE_URL = 'https://zbghffgydxzufzfuozwq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc';
+
+    // ========== 数据 ==========
+    let movies = [];
+    let supabase = null;
+
+    // 成就定义
+    const achievements = [
+      { id: 'first_watch', name: '初遇', desc: '第1次一起看', icon: '🎬', condition: (m) => m.length >= 1 },
+      { id: 'tenth_watch', name: '十次之约', desc: '第10次一起看', icon: '🎬', condition: (m) => m.length >= 10 },
+      { id: 'twenty_five', name: '银婚纪念', desc: '第25次一起看', icon: '💕', condition: (m) => m.length >= 25 },
+      { id: 'fifty', name: '半百之旅', desc: '第50次一起看', icon: '🌟', condition: (m) => m.length >= 50 },
+      { id: 'hundred', name: '百次辉煌', desc: '第100次一起看', icon: '👑', condition: (m) => m.length >= 100 },
+      { id: 'ten_hours', name: '十小时陪伴', desc: '累计10小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 600 },
+      { id: 'fifty_hours', name: '五十小时', desc: '累计50小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 3000 },
+      { id: 'hundred_hours', name: '百小时里程碑', desc: '累计100小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 6000 },
+      { id: 'romance_lover', name: '爱情片达人', desc: '看过10部爱情片', icon: '💘', condition: (m) => m.filter(x => x.genre === 'romance').length >= 10 },
+      { id: 'action_hero', name: '动作片英雄', desc: '看过10部动作片', icon: '💪', condition: (m) => m.filter(x => x.genre === 'action').length >= 10 },
+      { id: 'comedy_king', name: '喜剧之王', desc: '看过10部喜剧', icon: '😂', condition: (m) => m.filter(x => x.genre === 'comedy').length >= 10 },
+    ];
+
+    const genreMap = {
+      'action': '动作', 'romance': '爱情', 'comedy': '喜剧', 'thriller': '惊悚',
+      'sci-fi': '科幻', 'drama': '剧情', 'horror': '恐怖', 'animation': '动画', 'documentary': '纪录片'
+    };
+
+    // ========== 工具函数 ==========
+    function getTotalMinutes(movieList) {
+      return movieList.reduce((sum, m) => sum + (m.duration_minutes || 0), 0);
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+
+    function getMonthKey(dateStr) {
+      const date = new Date(dateStr);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    // ========== 页面导航 ==========
+    function navigate(page) {
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.page === page);
+      });
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(page + '-page').classList.add('active');
+
+      const titles = {
+        home: { title: '第 X 次一起看', subtitle: '记录我们的观影时光' },
+        movies: { title: '观影记录', subtitle: '我们的电影清单' },
+        achievements: { title: '成就徽章', subtitle: '解锁我们的里程碑' },
+        stats: { title: '数据统计', subtitle: '一起看过的点点滴滴' }
+      };
+      document.getElementById('page-title').textContent = titles[page].title;
+      document.getElementById('page-subtitle').textContent = titles[page].subtitle;
+
+      if (page === 'home') renderHome();
+      if (page === 'movies') renderMovies();
+      if (page === 'achievements') renderAchievements();
+      if (page === 'stats') renderStats();
+    }
+
+    // ========== 首页 ==========
+    function renderHome() {
+      const sorted = [...movies].sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
+      const totalMinutes = getTotalMinutes(movies);
+      const hours = Math.floor(totalMinutes / 60);
+      const mins = totalMinutes % 60;
+
+      document.getElementById('total-movies').textContent = movies.length;
+      document.getElementById('total-hours').textContent = hours;
+      document.getElementById('total-minutes').textContent = mins;
+
+      const recentDiv = document.getElementById('recent-movies');
+      if (sorted.length === 0) {
+        recentDiv.innerHTML = '<p class="empty-state">还没有记录，开始你们的第一次吧～</p>';
+      } else {
+        recentDiv.innerHTML = sorted.slice(0, 3).map(m => `
+          <div class="movie-card">
+            <div class="movie-info">
+              <div class="movie-title">${m.movie_name}</div>
+              <div class="movie-meta">${formatDate(m.watch_date)} · ${m.duration_minutes || '?'}分钟</div>
+            </div>
+            ${m.genre ? '<span class="movie-badge">' + (genreMap[m.genre] || m.genre) + '</span>' : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    // ========== 影单 ==========
+    function renderMovies() {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const genre = document.getElementById('genre-filter').value;
+      let filtered = [...movies].sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
+      
+      if (search) filtered = filtered.filter(m => m.movie_name.toLowerCase().includes(search));
+      if (genre) filtered = filtered.filter(m => m.genre === genre);
+
+      const container = document.getElementById('all-movies');
+      if (filtered.length === 0) {
+        container.innerHTML = '<p class="empty-state">没有找到匹配的电影</p>';
+      } else {
+        container.innerHTML = filtered.map(m => `
+          <div class="movie-card">
+            <div class="movie-info">
+              <div class="movie-title">${m.movie_name}</div>
+              <div class="movie-meta">${formatDate(m.watch_date)} · ${m.duration_minutes || '?'}分钟 ${m.created_by ? '· ' + m.created_by : ''}</div>
+            </div>
+            ${m.genre ? '<span class="movie-badge">' + (genreMap[m.genre] || m.genre) + '</span>' : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    function filterMovies() { renderMovies(); }
+
+    // ========== 成就 ==========
+    function renderAchievements() {
+      const container = document.getElementById('achievements-grid');
+      container.innerHTML = achievements.map(a => {
+        const unlocked = a.condition(movies);
+        return '<div class="achievement-card ' + (unlocked ? 'unlocked' : '') + '">' +
+          '<div class="achievement-icon">' + a.icon + '</div>' +
+          '<div class="achievement-name">' + a.name + '</div>' +
+          '<div class="achievement-desc">' + a.desc + '</div></div>';
+      }).join('');
+    }
+
+    // ========== 统计 ==========
+    function renderStats() {
+      const totalMinutes = getTotalMinutes(movies);
+      const hours = Math.floor(totalMinutes / 60);
+      const avgMinutes = movies.length ? Math.round(totalMinutes / movies.length) : 0;
+
+      document.getElementById('stat-total').textContent = movies.length;
+      document.getElementById('stat-hours').textContent = hours;
+      document.getElementById('stat-avg').textContent = avgMinutes;
+
+      // 类型分布
+      const genreCounts = {};
+      movies.forEach(m => { if (m.genre) genreCounts[m.genre] = (genreCounts[m.genre] || 0) + 1; });
+      const colors = ['#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#74B9FF', '#A29BFE', '#FD79A8', '#00CEC9'];
+      document.getElementById('genre-chart').innerHTML = Object.entries(genreCounts).map(([g, c], i) =>
+        '<div class="genre-item"><span class="genre-dot" style="background:' + colors[i % colors.length] + '"></span><span>' + (genreMap[g] || g) + '</span><span class="genre-count">' + c + '</span></div>'
+      ).join('') || '<p class="empty-state">暂无数据</p>';
+
+      // 月度分布
+      const monthlyCounts = {};
+      movies.forEach(m => { const k = getMonthKey(m.watch_date); monthlyCounts[k] = (monthlyCounts[k] || 0) + 1; });
+      const sortedMonths = Object.keys(monthlyCounts).sort().slice(-6);
+      const maxCount = Math.max(...Object.values(monthlyCounts), 1);
+      document.getElementById('monthly-chart').innerHTML = sortedMonths.map(m => {
+        const c = monthlyCounts[m];
+        const h = (c / maxCount) * 100;
+        return '<div class="month-bar" style="height:' + h + '%" data-count="' + c + '"></div>';
+      }).join('');
+    }
+
+    // ========== 弹窗 ==========
+    const modal = document.getElementById('add-modal');
+    document.getElementById('add-btn').onclick = () => modal.classList.add('active');
+    document.getElementById('close-modal').onclick = () => modal.classList.remove('active');
+    modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('active'); };
+
+    // 初始化日期
+    document.getElementById('watch-date').valueAsDate = new Date();
+
+    // ========== 提交表单 ==========
+    document.getElementById('add-form').onsubmit = async (e) => {
+      e.preventDefault();
+      
+      const movieData = {
+        movie_name: document.getElementById('movie-name').value,
+        watch_date: document.getElementById('watch-date').value,
+        duration_minutes: parseInt(document.getElementById('duration').value) || null,
+        genre: document.getElementById('genre').value || null,
+        created_by: document.getElementById('created-by').value || 'TA'
+      };
+
+      if (!supabase) {
+        // 本地测试模式
+        movies.push({ ...movieData, id: Date.now() });
+        modal.classList.remove('active');
+        document.getElementById('add-form').reset();
+        document.getElementById('watch-date').valueAsDate = new Date();
+        renderHome();
+        renderMovies();
+        renderAchievements();
+        renderStats();
+        alert('添加成功！（本地模式）');
+        return;
+      }
+
+      try {
+        const { error } = await supabase.from('movies').insert(movieData);
+        if (error) throw error;
+        modal.classList.remove('active');
+        document.getElementById('add-form').reset();
+        document.getElementById('watch-date').valueAsDate = new Date();
+        await loadMovies();
+        alert('添加成功！');
+      } catch (err) {
+        alert('添加失败: ' + err.message);
+      }
+    };
+
+    // ========== 数据加载 ==========
+    async function loadMovies() {
+      if (!supabase) return;
+      try {
+        const { data } = await supabase.from('movies').select('*').order('watch_date', { ascending: false });
+        movies = data || [];
+        document.getElementById('page-title').textContent = '第 ' + movies.length + ' 次一起看';
+      } catch (err) {
+        console.log('加载数据失败:', err);
+      }
+    }
+
+    // ========== 初始化 Supabase ==========
+    async function initSupabase() {
+      try {
+        if (typeof supabase !== 'undefined') {
+          supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          await loadMovies();
+        }
+      } catch (e) {
+        console.log('Supabase 加载失败，使用本地模式');
+      }
+    }
+
+    // 绑定导航事件
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.onclick = () => navigate(btn.dataset.page);
+    });
+
+    // 启动
+    initSupabase();
+    renderHome();
+  </script>
 </body>
 </html>
