@@ -12,8 +12,33 @@
     <header class="header">
       <h1 id="page-title">第 X 次一起看</h1>
       <p class="subtitle" id="page-subtitle">记录我们的观影时光</p>
-      <button class="settings-btn" onclick="showSettings()">⚙️</button>
+      <div class="header-buttons">
+        <button class="music-btn" id="music-btn" onclick="toggleMusicPanel()">🎵</button>
+        <button class="settings-btn" onclick="showSettings()">⚙️</button>
+      </div>
     </header>
+
+    <!-- 音乐播放器面板 -->
+    <div id="music-panel" class="music-panel">
+      <div class="music-panel-header">
+        <span>🎵 背景音乐</span>
+        <button class="music-close" onclick="toggleMusicPanel()">×</button>
+      </div>
+      <div class="music-panel-content">
+        <div class="music-track" onclick="playTrack(0)">
+          <span class="track-name">萤火之森 - CMJ</span>
+          <span class="track-play" id="track-0-status">▶</span>
+        </div>
+        <div class="music-track" onclick="playTrack(1)">
+          <span class="track-name">Summer - 久石让</span>
+          <span class="track-play" id="track-1-status">▶</span>
+        </div>
+        <div class="music-volume-row">
+          <button class="music-toggle" id="music-toggle-btn" onclick="toggleMusic()">🔇</button>
+          <input type="range" id="volume-slider" min="0" max="100" value="50" onchange="setVolume(this.value)">
+        </div>
+      </div>
+    </div>
 
     <main id="main-content">
       <section id="home-page" class="page active">
@@ -137,33 +162,6 @@
         <span class="close" onclick="hideSettings()">&times;</span>
         <h2>设置</h2>
         
-        <!-- 音乐设置 -->
-        <div class="settings-section">
-          <h3>🎵 背景音乐</h3>
-          <div id="music-player" class="music-player">
-            <div class="music-controls">
-              <button class="music-toggle" id="music-toggle-btn" onclick="toggleMusic()">🔇</button>
-              <div class="music-info">
-                <span id="current-song">选择歌曲</span>
-              </div>
-            </div>
-            <div class="music-library">
-              <div class="music-track" onclick="playTrack(0)">
-                <span class="track-name">CMJ - 萤火之森</span>
-                <span class="track-play" id="track-0-status">▶</span>
-              </div>
-              <div class="music-track" onclick="playTrack(1)">
-                <span class="track-name">久石让 - Summer</span>
-                <span class="track-play" id="track-1-status">▶</span>
-              </div>
-            </div>
-            <div class="music-volume">
-              <span>音量:</span>
-              <input type="range" id="volume-slider" min="0" max="100" value="50" onchange="setVolume(this.value)">
-            </div>
-          </div>
-        </div>
-
         <!-- 主题设置 -->
         <div class="settings-section">
           <h3>主题</h3>
@@ -173,32 +171,36 @@
           </div>
         </div>
 
-        <!-- 背景设置 -->
+        <!-- 背景设置 - 重新整理 -->
         <div class="settings-section">
-          <h3>背景图片（同步到云端）</h3>
-          <div class="bg-options">
-            <div class="bg-option">
-              <label>输入图片URL</label>
-              <input type="text" id="bg-image-url" placeholder="https://example.com/image.jpg">
-            </div>
-            <div class="bg-option">
-              <label>或上传本地图片</label>
-              <input type="file" id="bg-file-input" accept="image/*">
-            </div>
+          <h3>🎨 背景与显示</h3>
+          
+          <!-- 背景图片 -->
+          <div class="bg-option">
+            <label>背景图片URL</label>
+            <input type="text" id="bg-image-url" placeholder="https://example.com/image.jpg" oninput="onBgUrlChange()">
           </div>
-          <input type="range" id="bg-opacity" min="0" max="100" value="30" oninput="updateBgPreview()">
-          <label>背景不透明度: <span id="opacity-value">30%</span></label>
-          <button class="btn-primary btn-save-bg" onclick="saveBackgroundSettings()">💾 保存背景设置</button>
-          <p class="setting-tip">点击保存后会同步到云端，另一设备刷新即可看到</p>
-        </div>
-
-        <!-- 组件透明度设置 -->
-        <div class="settings-section">
-          <h3>组件透明度</h3>
-          <label>卡片透明度: <span id="card-opacity-value">100%</span></label>
-          <input type="range" id="card-opacity" min="0" max="100" value="100" oninput="updateCardOpacity()">
-          <p class="setting-tip">调低透明度可让背景图片透出来</p>
-          <button class="btn-primary btn-save-bg" onclick="saveBackgroundSettings()">💾 保存设置</button>
+          <div class="bg-option">
+            <label>或上传本地图片</label>
+            <input type="file" id="bg-file-input" accept="image/*">
+          </div>
+          
+          <!-- 遮罩透明度 - 控制背景图的清晰度 -->
+          <div class="opacity-control">
+            <label>背景遮罩透明度: <span id="bg-mask-opacity-value">30%</span></label>
+            <input type="range" id="bg-mask-opacity" min="0" max="100" value="30" oninput="onBgMaskOpacityChange()">
+            <p class="setting-tip">数值越低，背景图片越清晰</p>
+          </div>
+          
+          <!-- 卡片透明度 - 控制前景内容的透明度 -->
+          <div class="opacity-control">
+            <label>卡片/内容透明度: <span id="card-opacity-value">100%</span></label>
+            <input type="range" id="card-opacity" min="0" max="100" value="100" oninput="onCardOpacityChange()">
+            <p class="setting-tip">数值越低，背景图片越透出来</p>
+          </div>
+          
+          <button class="btn-primary btn-save-bg" onclick="saveBackgroundSettings()">💾 保存并同步到云端</button>
+          <p class="setting-tip">保存后会同步到云端，另一设备刷新即可看到</p>
         </div>
 
         <!-- 管理员设置 -->
@@ -258,10 +260,10 @@
       { id: 'documentary', name: '纪录片' }
     ];
 
-    // 音乐曲目
+    // 音乐曲目 - 使用用户提供的链接
     const musicTracks = [
-      { name: 'CMJ - 萤火之森', url: 'https://music.163.com/song/media/outer/url?id=5252295' },
-      { name: '久石让 - Summer', url: 'https://music.163.com/song/media/outer/url?id=432506364' }
+      { name: '萤火之森 - CMJ', url: 'http://music.163.com/song/media/outer/url?id=1415706303.mp3' },
+      { name: 'Summer - 久石让', url: 'http://music.163.com/song/media/outer/url?id=1867107328.mp3' }
     ];
 
     // ========== 状态 ==========
@@ -271,15 +273,16 @@
     let isMusicPlaying = false;
     let currentTrackIndex = -1;
     let musicMuted = true;
+    let musicPanelOpen = false;
     let cloudSettings = {
       bgImage: '',
-      bgOpacity: 30,
+      bgMaskOpacity: 30,
       cardOpacity: 100
     };
     let config = {
       theme: 'light',
       bgImage: '',
-      bgOpacity: 30,
+      bgMaskOpacity: 30,
       cardOpacity: 100,
       adminPassword: 'movie2024'
     };
@@ -313,28 +316,29 @@
       // 应用主题
       setTheme(config.theme);
       
-      // 应用卡片透明度
-      updateCardOpacity(config.cardOpacity);
-      document.getElementById('card-opacity').value = config.cardOpacity;
-      document.getElementById('card-opacity-value').textContent = config.cardOpacity + '%';
-
-      // 加载云端设置（背景同步）- 添加重试逻辑
+      // 应用透明度设置
+      applyOpacitySettings();
+      
+      // 加载云端设置（背景同步）
       await fetchCloudSettingsWithRetry(3);
       
       // 如果有云端背景，应用它
       if (cloudSettings.bgImage) {
-        applyBackground(cloudSettings.bgImage, cloudSettings.bgOpacity);
+        applyBackground(cloudSettings.bgImage, cloudSettings.bgMaskOpacity);
         config.bgImage = cloudSettings.bgImage;
-        config.bgOpacity = cloudSettings.bgOpacity;
+        config.bgMaskOpacity = cloudSettings.bgMaskOpacity;
+        config.cardOpacity = cloudSettings.cardOpacity;
         // 更新UI显示
         document.getElementById('bg-image-url').value = cloudSettings.bgImage;
       } else if (config.bgImage) {
-        applyBackground(config.bgImage, config.bgOpacity);
+        applyBackground(config.bgImage, config.bgMaskOpacity);
       }
       
-      // 更新UI显示
-      document.getElementById('bg-opacity').value = config.bgOpacity;
-      document.getElementById('opacity-value').textContent = config.bgOpacity + '%';
+      // 更新UI显示所有滑块值
+      document.getElementById('bg-mask-opacity').value = config.bgMaskOpacity;
+      document.getElementById('bg-mask-opacity-value').textContent = config.bgMaskOpacity + '%';
+      document.getElementById('card-opacity').value = config.cardOpacity;
+      document.getElementById('card-opacity-value').textContent = config.cardOpacity + '%';
 
       // 初始化日期
       document.getElementById('watch-date').valueAsDate = new Date();
@@ -366,19 +370,28 @@
       renderHome();
     }
 
+    // ========== 透明度设置应用 ==========
+    function applyOpacitySettings() {
+      document.getElementById('bg-mask-opacity').value = config.bgMaskOpacity;
+      document.getElementById('bg-mask-opacity-value').textContent = config.bgMaskOpacity + '%';
+      document.getElementById('card-opacity').value = config.cardOpacity;
+      document.getElementById('card-opacity-value').textContent = config.cardOpacity + '%';
+      document.documentElement.style.setProperty('--card-bg-opacity', config.cardOpacity / 100);
+    }
+
     // ========== 云端设置 - 带重试 ==========
     async function fetchCloudSettingsWithRetry(retryCount) {
       for (let i = 0; i < retryCount; i++) {
         try {
           await fetchCloudSettings();
           if (cloudSettings.bgImage || cloudSettings.cardOpacity !== 100) {
-            return; // 成功获取到数据
+            return;
           }
         } catch (e) {
           console.log(`获取云端设置第${i+1}次失败:`, e);
         }
         if (i < retryCount - 1) {
-          await new Promise(r => setTimeout(r, 500)); // 等待后重试
+          await new Promise(r => setTimeout(r, 500));
         }
       }
     }
@@ -404,7 +417,6 @@
             const settings = JSON.parse(data[0].value);
             console.log('解析云端设置:', settings);
             cloudSettings = { ...cloudSettings, ...settings };
-            console.log('更新后的cloudSettings:', cloudSettings);
           } else {
             console.log('云端没有保存的设置，使用默认值');
           }
@@ -420,13 +432,12 @@
       try {
         const value = JSON.stringify({
           bgImage: cloudSettings.bgImage,
-          bgOpacity: cloudSettings.bgOpacity,
+          bgMaskOpacity: cloudSettings.bgMaskOpacity,
           cardOpacity: cloudSettings.cardOpacity
         });
         
         console.log('正在保存到云端:', value);
         
-        // 先检查是否存在
         let response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
           method: 'GET',
           headers: { 
@@ -440,7 +451,6 @@
         const existing = await response.json();
         
         if (existing && existing.length > 0) {
-          // 更新
           response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
             method: 'PATCH',
             headers: {
@@ -453,7 +463,6 @@
           });
           console.log('云端设置已更新, 状态:', response.status);
         } else {
-          // 创建
           response = await fetch(SUPABASE_URL + '/rest/v1/settings', {
             method: 'POST',
             headers: {
@@ -476,6 +485,12 @@
     }
 
     // ========== 音乐功能 ==========
+    function toggleMusicPanel() {
+      const panel = document.getElementById('music-panel');
+      musicPanelOpen = !musicPanelOpen;
+      panel.classList.toggle('active', musicPanelOpen);
+    }
+
     function playTrack(index) {
       const audio = document.getElementById('audio-player');
       const track = musicTracks[index];
@@ -486,7 +501,6 @@
       }
       
       if (currentTrackIndex === index && !audio.paused) {
-        // 暂停当前播放
         audio.pause();
         document.getElementById('track-' + index + '-status').textContent = '▶';
         isMusicPlaying = false;
@@ -494,12 +508,10 @@
         return;
       }
       
-      // 播放新曲目
       currentTrackIndex = index;
       audio.src = track.url;
       audio.volume = document.getElementById('volume-slider').value / 100;
       
-      // 如果静音则不播放
       if (!musicMuted) {
         audio.play().catch(e => console.log('播放失败:', e));
         isMusicPlaying = true;
@@ -509,8 +521,6 @@
       }
       
       document.getElementById('current-song').textContent = track.name;
-      
-      // 更新音量
       audio.volume = musicMuted ? 0 : document.getElementById('volume-slider').value / 100;
     }
 
@@ -524,9 +534,7 @@
           document.getElementById('track-' + currentTrackIndex + '-status').textContent = '▶';
         }
       } else {
-        // 尝试播放
         if (currentTrackIndex === -1) {
-          // 默认播放第一首
           playTrack(0);
         } else {
           audio.play().catch(e => console.log('播放失败:', e));
@@ -605,37 +613,33 @@
       });
     }
 
-    // ========== 组件透明度 ==========
-    function updateCardOpacity(value) {
-      if (value === undefined) {
-        value = document.getElementById('card-opacity').value;
+    // ========== 实时背景透明度控制 ==========
+    function onBgUrlChange() {
+      const url = document.getElementById('bg-image-url').value;
+      const maskOpacity = document.getElementById('bg-mask-opacity').value;
+      
+      if (url) {
+        applyBackground(url, maskOpacity);
       }
-      value = parseInt(value);
+    }
+
+    function onBgMaskOpacityChange() {
+      const value = document.getElementById('bg-mask-opacity').value;
+      document.getElementById('bg-mask-opacity-value').textContent = value + '%';
       
-      config.cardOpacity = value;
-      cloudSettings.cardOpacity = value;
-      
+      const url = document.getElementById('bg-image-url').value || config.bgImage;
+      if (url) {
+        applyBackground(url, value);
+      }
+    }
+
+    function onCardOpacityChange() {
+      const value = document.getElementById('card-opacity').value;
       document.getElementById('card-opacity-value').textContent = value + '%';
-      document.getElementById('card-opacity').value = value;
-      
-      // 应用透明度
       document.documentElement.style.setProperty('--card-bg-opacity', value / 100);
-      
-      localStorage.setItem('movie-together-config', JSON.stringify(config));
     }
 
     // ========== 背景图片 ==========
-    function updateBgPreview() {
-      const opacity = document.getElementById('bg-opacity').value;
-      document.getElementById('opacity-value').textContent = opacity + '%';
-      
-      // 实时预览背景
-      const url = document.getElementById('bg-image-url').value;
-      if (url) {
-        applyBackground(url, opacity);
-      }
-    }
-
     function handleBgUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -643,14 +647,13 @@
       const reader = new FileReader();
       reader.onload = async function(e) {
         config.bgImage = e.target.result;
-        config.bgOpacity = document.getElementById('bg-opacity').value;
+        config.bgMaskOpacity = document.getElementById('bg-mask-opacity').value;
         cloudSettings.bgImage = e.target.result;
-        cloudSettings.bgOpacity = config.bgOpacity;
+        cloudSettings.bgMaskOpacity = config.bgMaskOpacity;
         
-        applyBackground(config.bgImage, config.bgOpacity);
+        applyBackground(config.bgImage, config.bgMaskOpacity);
         localStorage.setItem('movie-together-config', JSON.stringify(config));
         
-        // 同步到云端
         await saveCloudSettings();
         
         alert('背景图片已应用并同步到云端！');
@@ -660,7 +663,7 @@
 
     function saveBackgroundSettings() {
       const url = document.getElementById('bg-image-url').value;
-      const opacity = document.getElementById('bg-opacity').value;
+      const maskOpacity = document.getElementById('bg-mask-opacity').value;
       const cardOpacity = document.getElementById('card-opacity').value;
       
       if (url) {
@@ -668,22 +671,20 @@
         cloudSettings.bgImage = url;
       }
       
-      config.bgOpacity = opacity;
-      cloudSettings.bgOpacity = opacity;
+      config.bgMaskOpacity = maskOpacity;
+      cloudSettings.bgMaskOpacity = maskOpacity;
+      config.cardOpacity = cardOpacity;
       cloudSettings.cardOpacity = cardOpacity;
       
-      applyBackground(cloudSettings.bgImage, cloudSettings.bgOpacity);
+      applyBackground(cloudSettings.bgImage, cloudSettings.bgMaskOpacity);
       
-      // 保存到本地
       localStorage.setItem('movie-together-config', JSON.stringify(config));
-      
-      // 同步到云端
       saveCloudSettings();
       
       alert('设置已保存并同步到云端！\n另一台设备刷新页面即可看到');
     }
 
-    function applyBackground(url, opacity) {
+    function applyBackground(url, maskOpacity) {
       if (!url) return;
       
       document.body.style.backgroundImage = `url(${url})`;
@@ -701,20 +702,7 @@
       
       const isDark = document.body.getAttribute('data-theme') === 'dark';
       const bgColor = isDark ? '20,20,40' : '248,249,250';
-      overlay.style.backgroundColor = `rgba(${bgColor},${opacity/100})`;
-    }
-
-    function clearBg() {
-      config.bgImage = '';
-      cloudSettings.bgImage = '';
-      localStorage.setItem('movie-together-config', JSON.stringify(config));
-      document.body.style.backgroundImage = '';
-      const overlay = document.getElementById('bg-overlay');
-      if (overlay) overlay.style.backgroundColor = 'transparent';
-      document.getElementById('bg-image-url').value = '';
-      
-      saveCloudSettings();
-      alert('背景已清除');
+      overlay.style.backgroundColor = `rgba(${bgColor},${maskOpacity/100})`;
     }
 
     // ========== 导出Excel ==========
