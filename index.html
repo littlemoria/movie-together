@@ -12,7 +12,7 @@
     <header class="header">
       <h1 id="page-title">第 X 次一起看</h1>
       <p class="subtitle" id="page-subtitle">记录我们的观影时光</p>
-      <button class="settings-btn" id="settings-btn" onclick="showSettings()">⚙️</button>
+      <button class="settings-btn" onclick="showSettings()">⚙️</button>
     </header>
 
     <main id="main-content">
@@ -49,15 +49,6 @@
         <div class="filter-bar">
           <select id="genre-filter" onchange="filterMovies()">
             <option value="">全部类型</option>
-            <option value="action">动作</option>
-            <option value="romance">爱情</option>
-            <option value="comedy">喜剧</option>
-            <option value="thriller">惊悚</option>
-            <option value="sci-fi">科幻</option>
-            <option value="drama">剧情</option>
-            <option value="horror">恐怖</option>
-            <option value="animation">动画</option>
-            <option value="documentary">纪录片</option>
           </select>
         </div>
         <div id="all-movies" class="movie-list"></div>
@@ -119,23 +110,20 @@
           </div>
           <div class="form-group">
             <label>类型（多选）</label>
-            <div class="checkbox-group" id="genre-group">
-              <label><input type="checkbox" name="genre" value="action"> 动作</label>
-              <label><input type="checkbox" name="genre" value="romance"> 爱情</label>
-              <label><input type="checkbox" name="genre" value="comedy"> 喜剧</label>
-              <label><input type="checkbox" name="genre" value="thriller"> 惊悚</label>
-              <label><input type="checkbox" name="genre" value="sci-fi"> 科幻</label>
-              <label><input type="checkbox" name="genre" value="drama"> 剧情</label>
-              <label><input type="checkbox" name="genre" value="horror"> 恐怖</label>
-              <label><input type="checkbox" name="genre" value="animation"> 动画</label>
-              <label><input type="checkbox" name="genre" value="documentary"> 纪录片</label>
+            <div class="checkbox-group" id="genre-group"></div>
+            <div class="add-custom-genre">
+              <input type="text" id="new-genre" placeholder="添加自定义类型">
+              <button type="button" class="btn-small" onclick="addCustomGenre()">+</button>
             </div>
           </div>
           <div class="form-group">
             <label>记录人</label>
             <input type="text" id="created-by" placeholder="谁记录的？">
           </div>
-          <button type="submit" class="btn-primary">保存</button>
+          <div class="form-actions" id="form-actions">
+            <button type="button" class="btn-delete" id="delete-btn" onclick="deleteMovie()" style="display:none;">删除</button>
+            <button type="submit" class="btn-primary">保存</button>
+          </div>
         </form>
       </div>
     </div>
@@ -158,23 +146,34 @@
         <!-- 背景设置 -->
         <div class="settings-section">
           <h3>背景图片</h3>
-          <input type="text" id="bg-image-url" placeholder="输入图片URL" oninput="updateBgPreview()">
+          <div class="bg-options">
+            <div class="bg-option">
+              <label>输入图片URL</label>
+              <input type="text" id="bg-image-url" placeholder="https://example.com/image.jpg" oninput="updateBgPreview()">
+            </div>
+            <div class="bg-option">
+              <label>或上传本地图片</label>
+              <input type="file" id="bg-file-input" accept="image/*" onchange="handleBgUpload(event)">
+            </div>
+          </div>
           <input type="range" id="bg-opacity" min="0" max="100" value="30" oninput="updateBgPreview()">
           <label>背景不透明度: <span id="opacity-value">30%</span></label>
-          <button class="btn-small" onclick="applyBg()">应用背景</button>
-          <button class="btn-small" onclick="clearBg()">清除背景</button>
+          <div class="bg-buttons">
+            <button class="btn-small" onclick="applyBg()">应用背景</button>
+            <button class="btn-small btn-danger" onclick="clearBg()">清除背景</button>
+          </div>
         </div>
 
         <!-- 管理员设置 -->
-        <div class="settings-section" id="admin-section">
+        <div class="settings-section">
           <h3>管理员</h3>
           <div id="login-status">
-            <p>未登录</p>
+            <p class="login-tip">未登录</p>
             <input type="password" id="admin-password" placeholder="输入管理员密码">
             <button class="btn-primary" onclick="login()">登录</button>
           </div>
           <div id="logged-in-status" style="display:none;">
-            <p>✅ 已登录</p>
+            <p class="login-success">✅ 已登录</p>
             <button class="btn-small" onclick="logout()">退出登录</button>
           </div>
         </div>
@@ -206,9 +205,23 @@
     const SUPABASE_URL = 'https://zbghffgydxzufzfuozwq.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc';
 
+    // 默认类型
+    const defaultGenres = [
+      { id: 'action', name: '动作' },
+      { id: 'romance', name: '爱情' },
+      { id: 'comedy', name: '喜剧' },
+      { id: 'thriller', name: '惊悚' },
+      { id: 'sci-fi', name: '科幻' },
+      { id: 'drama', name: '剧情' },
+      { id: 'horror', name: '恐怖' },
+      { id: 'animation', name: '动画' },
+      { id: 'documentary', name: '纪录片' }
+    ];
+
     // ========== 状态 ==========
     let movies = [];
     let isAdmin = false;
+    let customGenres = [];
     let config = {
       theme: 'light',
       bgImage: '',
@@ -222,19 +235,11 @@
       { id: 'tenth_watch', name: '十次之约', desc: '第10次一起看', icon: '🎬', condition: (m) => m.length >= 10 },
       { id: 'twenty_five', name: '银婚纪念', desc: '第25次一起看', icon: '💕', condition: (m) => m.length >= 25 },
       { id: 'fifty', name: '半百之旅', desc: '第50次一起看', icon: '🌟', condition: (m) => m.length >= 50 },
-      { id: 'hundred', name: '百次辉煌', desc: '第100次一起看', icon: '👑', condition: (m) => m.length >= 50 },
+      { id: 'hundred', name: '百次辉煌', desc: '第100次一起看', icon: '👑', condition: (m) => m.length >= 100 },
       { id: 'ten_hours', name: '十小时陪伴', desc: '累计10小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 600 },
       { id: 'fifty_hours', name: '五十小时', desc: '累计50小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 3000 },
       { id: 'hundred_hours', name: '百小时里程碑', desc: '累计100小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 6000 },
-      { id: 'romance_lover', name: '爱情片达人', desc: '看过10部爱情片', icon: '💘', condition: (m) => m.filter(x => (x.genre || '').includes('romance')).length >= 10 },
-      { id: 'action_hero', name: '动作片英雄', desc: '看过10部动作片', icon: '💪', condition: (m) => m.filter(x => (x.genre || '').includes('action')).length >= 10 },
-      { id: 'comedy_king', name: '喜剧之王', desc: '看过10部喜剧', icon: '😂', condition: (m) => m.filter(x => (x.genre || '').includes('comedy')).length >= 10 },
     ];
-
-    const genreMap = {
-      'action': '动作', 'romance': '爱情', 'comedy': '喜剧', 'thriller': '惊悚',
-      'sci-fi': '科幻', 'drama': '剧情', 'horror': '恐怖', 'animation': '动画', 'documentary': '纪录片'
-    };
 
     // ========== 初始化 ==========
     function init() {
@@ -242,6 +247,12 @@
       const savedConfig = localStorage.getItem('movie-together-config');
       if (savedConfig) {
         config = { ...config, ...JSON.parse(savedConfig) };
+      }
+      
+      // 加载自定义类型
+      const savedGenres = localStorage.getItem('movie-together-genres');
+      if (savedGenres) {
+        customGenres = JSON.parse(savedGenres);
       }
       
       // 应用主题
@@ -255,6 +266,10 @@
       // 初始化日期
       document.getElementById('watch-date').valueAsDate = new Date();
       
+      // 渲染类型选项
+      renderGenreOptions();
+      renderFilterOptions();
+      
       // 绑定导航事件
       document.querySelectorAll('.nav-item').forEach(btn => {
         btn.onclick = () => navigate(btn.dataset.page);
@@ -263,7 +278,9 @@
       // 绑定弹窗事件
       document.getElementById('add-btn').onclick = () => showMovieModal();
       document.getElementById('close-modal').onclick = () => hideMovieModal();
-      document.getElementById('movie-modal').onclick = (e) => { if (e.target.id === 'movie-modal') hideMovieModal(); };
+      document.getElementById('movie-modal').onclick = (e) => { 
+        if (e.target.id === 'movie-modal') hideMovieModal(); 
+      };
       
       // 绑定表单提交
       document.getElementById('movie-form').onsubmit = handleMovieSubmit;
@@ -272,22 +289,77 @@
       fetchMovies().then(() => renderHome());
     }
 
+    // ========== 渲染类型选项 ==========
+    function renderGenreOptions() {
+      const container = document.getElementById('genre-group');
+      const allGenres = [...defaultGenres, ...customGenres];
+      
+      container.innerHTML = allGenres.map(g => 
+        `<label><input type="checkbox" name="genre" value="${g.id}"> ${g.name}</label>`
+      ).join('');
+    }
+
+    function renderFilterOptions() {
+      const select = document.getElementById('genre-filter');
+      const allGenres = [...defaultGenres, ...customGenres];
+      
+      select.innerHTML = '<option value="">全部类型</option>' + 
+        allGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    }
+
+    // ========== 自定义类型 ==========
+    function addCustomGenre() {
+      const input = document.getElementById('new-genre');
+      const name = input.value.trim();
+      if (!name) return;
+      
+      const id = name.toLowerCase().replace(/\s+/g, '-');
+      
+      // 检查是否已存在
+      if (customGenres.find(g => g.id === id)) {
+        alert('类型已存在');
+        return;
+      }
+      
+      customGenres.push({ id, name });
+      localStorage.setItem('movie-together-genres', JSON.stringify(customGenres));
+      
+      input.value = '';
+      renderGenreOptions();
+      renderFilterOptions();
+    }
+
     // ========== 主题 ==========
     function setTheme(theme) {
       config.theme = theme;
       document.body.setAttribute('data-theme', theme);
       localStorage.setItem('movie-together-config', JSON.stringify(config));
       
-      // 更新按钮状态
       document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.theme === theme);
       });
     }
 
-    // ========== 背景 ==========
+    // ========== 背景图片 ==========
     function updateBgPreview() {
       const opacity = document.getElementById('bg-opacity').value;
       document.getElementById('opacity-value').textContent = opacity + '%';
+    }
+
+    function handleBgUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        // 保存为 data URL
+        config.bgImage = e.target.result;
+        config.bgOpacity = document.getElementById('bg-opacity').value;
+        applyBackground(config.bgImage, config.bgOpacity);
+        localStorage.setItem('movie-together-config', JSON.stringify(config));
+        alert('背景图片已应用！');
+      };
+      reader.readAsDataURL(file);
     }
 
     function applyBg() {
@@ -307,7 +379,6 @@
       document.body.style.backgroundPosition = 'center';
       document.body.style.backgroundAttachment = 'fixed';
       
-      // 创建遮罩
       let overlay = document.getElementById('bg-overlay');
       if (!overlay) {
         overlay = document.createElement('div');
@@ -315,12 +386,10 @@
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;pointer-events:none;';
         document.body.insertBefore(overlay, document.body.firstChild);
       }
-      overlay.style.backgroundColor = `rgba(248,249,250,${opacity/100})`;
       
-      // 暗色主题时用深色遮罩
-      if (document.body.getAttribute('data-theme') === 'dark') {
-        overlay.style.backgroundColor = `rgba(45,52,54,${opacity/100})`;
-      }
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      const bgColor = isDark ? '45,52,54' : '248,249,250';
+      overlay.style.backgroundColor = `rgba(${bgColor},${opacity/100})`;
     }
 
     function clearBg() {
@@ -329,6 +398,7 @@
       document.body.style.backgroundImage = '';
       const overlay = document.getElementById('bg-overlay');
       if (overlay) overlay.style.backgroundColor = 'transparent';
+      document.getElementById('bg-image-url').value = '';
     }
 
     // ========== 管理员登录 ==========
@@ -369,7 +439,6 @@
     async function saveMovie(movieData, id = null) {
       try {
         if (id) {
-          // 更新
           await fetch(SUPABASE_URL + '/rest/v1/movies?id=eq.' + id, {
             method: 'PATCH',
             headers: {
@@ -380,7 +449,6 @@
             body: JSON.stringify(movieData)
           });
         } else {
-          // 新增
           await fetch(SUPABASE_URL + '/rest/v1/movies', {
             method: 'POST',
             headers: {
@@ -396,7 +464,6 @@
         return true;
       } catch (err) {
         console.error('Save error:', err);
-        // 降级到本地
         if (id) {
           const idx = movies.findIndex(m => m.id === id);
           if (idx >= 0) movies[idx] = { ...movies[idx], ...movieData };
@@ -406,6 +473,23 @@
         }
         localStorage.setItem('movies', JSON.stringify(movies));
         return false;
+      }
+    }
+
+    async function deleteMovieFromDb(id) {
+      try {
+        await fetch(SUPABASE_URL + '/rest/v1/movies?id=eq.' + id, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY
+          }
+        });
+        movies = movies.filter(m => m.id !== id);
+      } catch (err) {
+        console.error('Delete error:', err);
+        movies = movies.filter(m => m.id !== id);
+        localStorage.setItem('movies', JSON.stringify(movies));
       }
     }
 
@@ -424,9 +508,15 @@
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     }
 
+    function getGenreName(id) {
+      const allGenres = [...defaultGenres, ...customGenres];
+      const g = allGenres.find(g => g.id === id);
+      return g ? g.name : id;
+    }
+
     function getGenreNames(genres) {
       if (!genres) return '';
-      return genres.split(',').map(g => genreMap[g] || g).filter(Boolean).join(', ');
+      return genres.split(',').map(g => getGenreName(g)).filter(Boolean).join(', ');
     }
 
     // ========== 页面导航 ==========
@@ -472,11 +562,16 @@
 
     function renderMovieCard(m) {
       const genreHtml = m.genre ? '<span class="movie-badge">' + getGenreNames(m.genre) + '</span>' : '';
-      return '<div class="movie-card" data-id="' + m.id + '">' +
-        '<div class="movie-info" onclick="editMovie(' + m.id + ')">' +
+      const clickHandler = isAdmin ? `onclick="editMovie('${m.id}')"` : (isAdmin ? '' : `onclick="showAdminAlert()"`);
+      return '<div class="movie-card"' + (isAdmin ? ' onclick="editMovie(\'' + m.id + '\')"' : '') + '>' +
+        '<div class="movie-info">' +
         '<div class="movie-title">' + m.movie_name + '</div>' +
         '<div class="movie-meta">' + formatDate(m.watch_date) + ' · ' + (m.duration_minutes || '?') + '分钟' + (m.created_by ? ' · ' + m.created_by : '') + '</div></div>' +
         genreHtml + '</div>';
+    }
+
+    function showAdminAlert() {
+      alert('点击电影卡片可编辑（需先在设置中登录管理员）');
     }
 
     function renderMovies() {
@@ -516,6 +611,7 @@
 
       // 类型分布
       const genreCounts = {};
+      const allGenres = [...defaultGenres, ...customGenres];
       movies.forEach(m => {
         if (m.genre) {
           m.genre.split(',').forEach(g => {
@@ -526,7 +622,7 @@
       const colors = ['#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#74B9FF', '#A29BFE', '#FD79A8', '#00CEC9'];
       document.getElementById('genre-chart').innerHTML = Object.entries(genreCounts).map((g, i) => {
         const [genre, count] = g;
-        return '<div class="genre-item"><span class="genre-dot" style="background:' + colors[i % colors.length] + '"></span><span>' + (genreMap[genre] || genre) + '</span><span class="genre-count">' + count + '</span></div>';
+        return '<div class="genre-item"><span class="genre-dot" style="background:' + colors[i % colors.length] + '"></span><span>' + getGenreName(genre) + '</span><span class="genre-count">' + count + '</span></div>';
       }).join('') || '<p class="empty-state">暂无数据</p>';
 
       // 月度分布
@@ -544,7 +640,7 @@
     // ========== 弹窗操作 ==========
     function showMovieModal(movie = null) {
       const modal = document.getElementById('movie-modal');
-      const form = document.getElementById('movie-form');
+      const deleteBtn = document.getElementById('delete-btn');
       
       if (movie) {
         document.getElementById('modal-title').textContent = '编辑观影记录';
@@ -559,12 +655,16 @@
         document.querySelectorAll('input[name="genre"]').forEach(cb => {
           cb.checked = genres.includes(cb.value);
         });
+        
+        // 显示删除按钮（仅管理员）
+        deleteBtn.style.display = isAdmin ? 'block' : 'none';
       } else {
         document.getElementById('modal-title').textContent = '添加观影记录';
-        form.reset();
+        document.getElementById('movie-form').reset();
         document.getElementById('movie-id').value = '';
         document.getElementById('watch-date').valueAsDate = new Date();
         document.querySelectorAll('input[name="genre"]').forEach(cb => cb.checked = false);
+        deleteBtn.style.display = 'none';
       }
       
       modal.classList.add('active');
@@ -583,13 +683,23 @@
     }
 
     function editMovie(id) {
-      if (!isAdmin) {
-        alert('请先在设置中登录管理员账号才能编辑');
-        showSettings();
-        return;
-      }
       const movie = movies.find(m => m.id === id);
       if (movie) showMovieModal(movie);
+    }
+
+    function deleteMovie() {
+      const id = document.getElementById('movie-id').value;
+      if (!id) return;
+      
+      if (confirm('确定要删除这条记录吗？')) {
+        deleteMovieFromDb(id);
+        hideMovieModal();
+        renderHome();
+        renderMovies();
+        renderAchievements();
+        renderStats();
+        alert('删除成功');
+      }
     }
 
     async function handleMovieSubmit(e) {
