@@ -741,6 +741,8 @@
         if (isVideo) {
           config.bgVideo = e.target.result;
           config.bgType = 'video';
+          cloudSettings.bgVideo = e.target.result;
+          cloudSettings.bgType = 'video';
           document.getElementById('bg-video-option').style.display = 'block';
           document.getElementById('bg-image-option').style.display = 'none';
           document.getElementById('bg-gif-option').style.display = 'none';
@@ -748,6 +750,8 @@
         } else if (isGif) {
           config.bgGif = e.target.result;
           config.bgType = 'gif';
+          cloudSettings.bgGif = e.target.result;
+          cloudSettings.bgType = 'gif';
           document.getElementById('bg-gif-option').style.display = 'block';
           document.getElementById('bg-image-option').style.display = 'none';
           document.getElementById('bg-video-option').style.display = 'none';
@@ -755,9 +759,12 @@
         } else {
           config.bgImage = e.target.result;
           config.bgType = 'image';
+          cloudSettings.bgImage = e.target.result;
+          cloudSettings.bgType = 'image';
         }
         
         config.bgMaskOpacity = document.getElementById('bg-mask-opacity').value;
+        cloudSettings.bgMaskOpacity = config.bgMaskOpacity;
         
         applyBackground();
         localStorage.setItem('movie-together-config', JSON.stringify(config));
