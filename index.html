@@ -37,7 +37,7 @@
         </div>
         <div class="music-volume-row">
           <button class="music-toggle" id="music-toggle-btn" onclick="toggleMusic()">🔇</button>
-          <input type="range" id="volume-slider" min="0" max="100" value="50" onchange="setVolume(this.value)">
+          <input type="range" id="volume-slider" min="0" max="100" value="17" onchange="setVolume(this.value)">
         </div>
       </div>
     </div>
@@ -282,6 +282,10 @@
     ];
 
     const musicTracks = [
+      { name: 'Mia And Sebastian - Sergio Blanco', url: 'http://music.163.com/song/media/outer/url?id=2130777132.mp3' },
+      { name: "Hedwig's Theme - John Williams", url: 'http://music.163.com/song/media/outer/url?id=5197491.mp3' },
+      { name: 'One Summer\'s Day', url: 'http://music.163.com/song/media/outer/url?id=1867108465.mp3' },
+      { name: '儿时的夏日 - 余日秋山', url: 'http://music.163.com/song/media/outer/url?id=467744316.mp3' },
       { name: '萤火之森 - CMJ', url: 'http://music.163.com/song/media/outer/url?id=1415706303.mp3' },
       { name: 'Summer - 久石让', url: 'http://music.163.com/song/media/outer/url?id=1867107328.mp3' }
     ];
@@ -378,6 +382,12 @@
 
       // 音乐播放结束自动播放下一首
       document.getElementById('audio-player').addEventListener('ended', playNextTrack);
+
+      // 页面加载完成后自动播放第一首，音量17%（默认不静音）
+      document.getElementById('audio-player').volume = 0.17;
+      musicMuted = false;  // 默认不静音
+      updateMusicToggleButton();
+      setTimeout(() => playTrack(0), 500);
 
       await fetchMovies();
       renderHome();
