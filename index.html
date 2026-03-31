@@ -692,6 +692,7 @@
     function onBgTypeChange() {
       const bgType = document.querySelector('input[name="bg-type"]:checked').value;
       config.bgType = bgType;
+      cloudSettings.bgType = bgType;
       
       document.getElementById('bg-image-option').style.display = bgType === 'image' ? 'block' : 'none';
       document.getElementById('bg-gif-option').style.display = bgType === 'gif' ? 'block' : 'none';
@@ -706,9 +707,11 @@
       else if (bgType === 'gif') url = document.getElementById('bg-gif-url').value;
       else if (bgType === 'video') url = document.getElementById('bg-video-url').value;
       
-      if (bgType === 'image') config.bgImage = url;
-      else if (bgType === 'gif') config.bgGif = url;
-      else if (bgType === 'video') config.bgVideo = url;
+      if (bgType === 'image') { config.bgImage = url; cloudSettings.bgImage = url; }
+      else if (bgType === 'gif') { config.bgGif = url; cloudSettings.bgGif = url; }
+      else if (bgType === 'video') { config.bgVideo = url; cloudSettings.bgVideo = url; }
+      
+      cloudSettings.bgType = bgType;
       
       if (url) applyBackground();
     }
