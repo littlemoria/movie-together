@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 X 次一起看</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <button class="header-btn music-btn" id="music-btn" onclick="toggleMusicPanel()" title="背景音乐">🎵</button>
+      <div class="header-title">
+        <h1 id="page-title">第 X 次一起看</h1>
+        <p class="subtitle" id="page-subtitle">记录我们的观影时光</p>
+      </div>
+      <button class="header-btn settings-btn" onclick="showSettings()" title="设置">⚙️</button>
+    </header>
+
+    <!-- 音乐播放器面板 -->
+    <div id="music-panel" class="music-panel">
+      <div class="music-panel-header">
+        <span>🎵 背景音乐</span>
+        <button class="music-close" onclick="toggleMusicPanel()">×</button>
+      </div>
+      <div class="music-panel-content">
+        <div class="music-track" onclick="playTrack(0)">
+          <span class="track-name">萤火之森 - CMJ</span>
+          <span class="track-play" id="track-0-status">▶</span>
+        </div>
+        <div class="music-track" onclick="playTrack(1)">
+          <span class="track-name">Summer - 久石让</span>
+          <span class="track-play" id="track-1-status">▶</span>
+        </div>
+        <div class="music-volume-row">
+          <button class="music-toggle" id="music-toggle-btn" onclick="toggleMusic()">🔇</button>
+          <input type="range" id="volume-slider" min="0" max="100" value="50" onchange="setVolume(this.value)">
+        </div>
+      </div>
+    </div>
+
+    <main id="main-content">
+      <section id="home-page" class="page active">
+        <div class="hero-card">
+          <div class="watch-count">
+            <span class="count-number" id="total-movies">0</span>
+            <span class="count-label">次一起看</span>
+          </div>
+          <div class="hero-stats">
+            <div class="stat-item">
+              <span class="stat-value" id="total-hours">0</span>
+              <span class="stat-label">小时</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="total-minutes">0</span>
+              <span class="stat-label">分钟</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="recent-section">
+          <h3>最近观看</h3>
+          <div id="recent-movies" class="movie-list"></div>
+        </div>
+
+        <button class="btn-primary" id="add-btn">+ 添加观影记录</button>
+      </section>
+
+      <section id="movies-page" class="page">
+        <div class="page-header">
+          <div class="search-bar">
+            <input type="text" id="search-input" placeholder="搜索电影..." oninput="filterMovies()">
+          </div>
+          <div class="filter-bar">
+            <select id="genre-filter" onchange="filterMovies()">
+              <option value="">全部类型</option>
+            </select>
+          </div>
+          <button class="btn-export" onclick="exportToExcel()">📥 导出数据</button>
+        </div>
+        <div id="all-movies" class="movie-list"></div>
+      </section>
+
+      <section id="achievements-page" class="page">
+        <div id="achievements-grid" class="achievements-grid"></div>
+      </section>
+
+      <section id="stats-page" class="page">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3>累计观看</h3>
+            <p class="big-number" id="stat-total">0</p>
+            <p>部电影</p>
+          </div>
+          <div class="stat-card">
+            <h3>总时长</h3>
+            <p class="big-number" id="stat-hours">0</p>
+            <p>小时</p>
+          </div>
+          <div class="stat-card">
+            <h3>平均时长</h3>
+            <p class="big-number" id="stat-avg">0</p>
+            <p>分钟/部</p>
+          </div>
+        </div>
+        
+        <!-- 类型分布 - 扇形图 -->
+        <div class="chart-section">
+          <h3>类型分布</h3>
+          <div class="genre-chart-container">
+            <canvas id="pie-chart" width="200" height="200"></canvas>
+            <div id="genre-chart" class="genre-chart"></div>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <h3>月度观看</h3>
+          <div id="monthly-chart" class="monthly-chart"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 添加/编辑弹窗 -->
+    <div id="movie-modal" class="modal">
+      <div class="modal-content">
+        <span class="close" id="close-modal">&times;</span>
+        <h2 id="modal-title">添加观影记录</h2>
+        <form id="movie-form">
+          <input type="hidden" id="movie-id">
+          <div class="form-group">
+            <label>电影名称 *</label>
+            <input type="text" id="movie-name" required placeholder="输入电影名">
+          </div>
+          <div class="form-group">
+            <label>观看日期 *</label>
+            <input type="date" id="watch-date" required>
+          </div>
+          <div class="form-group">
+            <label>时长（分钟）</label>
+            <input type="number" id="duration" placeholder="如：120">
+          </div>
+          <div class="form-group">
+            <label>类型（多选）</label>
+            <div class="checkbox-group" id="genre-group"></div>
+            <div class="add-custom-genre">
+              <input type="text" id="new-genre" placeholder="添加自定义类型">
+              <button type="button" class="btn-small" onclick="addCustomGenre()">+</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>记录人</label>
+            <input type="text" id="created-by" placeholder="谁记录的？">
+          </div>
+          <div class="form-actions" id="form-actions">
+            <button type="button" class="btn-delete" id="delete-btn" onclick="deleteMovie()" style="display:none;">删除</button>
+            <button type="submit" class="btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div id="settings-modal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="hideSettings()">&times;</span>
+        <h2>设置</h2>
+        
+        <!-- 主题设置 -->
+        <div class="settings-section">
+          <h3>主题</h3>
+          <div class="theme-toggle">
+            <button class="theme-btn" data-theme="light" onclick="setTheme('light')">☀️ 白天</button>
+            <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')">🌙 夜间</button>
+          </div>
+        </div>
+
+        <!-- 背景设置 -->
+        <div class="settings-section">
+          <h3>🎨 背景与显示</h3>
+          
+          <!-- 背景类型选择 -->
+          <div class="bg-type-selector">
+            <label><input type="radio" name="bg-type" value="image" checked onchange="onBgTypeChange()"> 图片</label>
+            <label><input type="radio" name="bg-type" value="gif" onchange="onBgTypeChange()"> GIF动图</label>
+            <label><input type="radio" name="bg-type" value="video" onchange="onBgTypeChange()"> 视频</label>
+          </div>
+          
+          <!-- 图片输入 -->
+          <div class="bg-option" id="bg-image-option">
+            <label>背景图片URL</label>
+            <input type="text" id="bg-image-url" placeholder="https://example.com/image.jpg" oninput="onBgUrlChange()">
+          </div>
+          <div class="bg-option" id="bg-gif-option" style="display:none;">
+            <label>GIF动图URL</label>
+            <input type="text" id="bg-gif-url" placeholder="https://example.com/background.gif" oninput="onBgUrlChange()">
+          </div>
+          <div class="bg-option" id="bg-video-option" style="display:none;">
+            <label>视频URL (建议10秒以内)</label>
+            <input type="text" id="bg-video-url" placeholder="https://example.com/background.mp4" oninput="onBgUrlChange()">
+          </div>
+          
+          <div class="bg-option">
+            <label>或上传本地文件</label>
+            <input type="file" id="bg-file-input" accept="image/*,video/*,.gif">
+          </div>
+          
+          <!-- 遮罩透明度 -->
+          <div class="opacity-control">
+            <label>背景遮罩透明度: <span id="bg-mask-opacity-value">30%</span></label>
+            <input type="range" id="bg-mask-opacity" min="0" max="100" value="30" oninput="onBgMaskOpacityChange()">
+            <p class="setting-tip">数值越低，背景越清晰</p>
+          </div>
+          
+          <!-- 卡片透明度 -->
+          <div class="opacity-control">
+            <label>卡片/内容透明度: <span id="card-opacity-value">100%</span></label>
+            <input type="range" id="card-opacity" min="0" max="100" value="100" oninput="onCardOpacityChange()">
+            <p class="setting-tip">数值越低，背景越透出来</p>
+          </div>
+          
+          <button class="btn-primary btn-save-bg" onclick="saveBackgroundSettings()">💾 保存并同步到云端</button>
+          <p class="setting-tip">保存后会同步到云端，另一设备刷新即可看到</p>
+        </div>
+
+        <!-- 管理员设置 -->
+        <div class="settings-section">
+          <h3>管理员</h3>
+          <div id="login-status">
+            <p class="login-tip">未登录</p>
+            <input type="password" id="admin-password" placeholder="输入管理员密码">
+            <button class="btn-primary" onclick="login()">登录</button>
+          </div>
+          <div id="logged-in-status" style="display:none;">
+            <p class="login-success">✅ 已登录</p>
+            <button class="btn-small" onclick="logout()">退出登录</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 音乐播放 -->
+    <audio id="audio-player" preload="auto"></audio>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-page="home">
+      <span class="nav-icon">🏠</span>
+      <span>首页</span>
+    </button>
+    <button class="nav-item" data-page="movies">
+      <span class="nav-icon">📜</span>
+      <span>影单</span>
+    </button>
+    <button class="nav-item" data-page="achievements">
+      <span class="nav-icon">🏆</span>
+      <span>成就</span>
+    </button>
+    <button class="nav-item" data-page="stats">
+      <span class="nav-icon">📊</span>
+      <span>统计</span>
+    </button>
+  </nav>
+
+  <script>
+    // ========== 配置 ==========
+    const SUPABASE_URL = 'https://zbghffgydxzufzfuozwq.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc';
+
+    const defaultGenres = [
+      { id: 'action', name: '动作' },
+      { id: 'romance', name: '爱情' },
+      { id: 'comedy', name: '喜剧' },
+      { id: 'thriller', name: '惊悚' },
+      { id: 'sci-fi', name: '科幻' },
+      { id: 'drama', name: '剧情' },
+      { id: 'horror', name: '恐怖' },
+      { id: 'animation', name: '动画' },
+      { id: 'documentary', name: '纪录片' }
+    ];
+
+    const musicTracks = [
+      { name: '萤火之森 - CMJ', url: 'http://music.163.com/song/media/outer/url?id=1415706303.mp3' },
+      { name: 'Summer - 久石让', url: 'http://music.163.com/song/media/outer/url?id=1867107328.mp3' }
+    ];
+
+    // ========== 状态 ==========
+    let movies = [];
+    let isAdmin = false;
+    let customGenres = [];
+    let currentTrackIndex = -1;
+    let musicMuted = true;
+    let musicPaused = true;  // 跟踪音乐是否暂停
+    let musicPanelOpen = false;
+    let cloudSettings = {
+      bgType: 'image',
+      bgImage: '',
+      bgGif: '',
+      bgVideo: '',
+      bgMaskOpacity: 30,
+      cardOpacity: 100
+    };
+    let config = {
+      theme: 'light',
+      bgType: 'image',
+      bgImage: '',
+      bgGif: '',
+      bgVideo: '',
+      bgMaskOpacity: 30,
+      cardOpacity: 100,
+      adminPassword: 'movie2024'
+    };
+
+    const achievements = [
+      { id: 'first_watch', name: '初遇', desc: '第1次一起看', icon: '🎬', condition: (m) => m.length >= 1 },
+      { id: 'tenth_watch', name: '十次之约', desc: '第10次一起看', icon: '🎬', condition: (m) => m.length >= 10 },
+      { id: 'twenty_five', name: '银婚纪念', desc: '第25次一起看', icon: '💕', condition: (m) => m.length >= 25 },
+      { id: 'fifty', name: '半百之旅', desc: '第50次一起看', icon: '🌟', condition: (m) => m.length >= 50 },
+      { id: 'hundred', name: '百次辉煌', desc: '第100次一起看', icon: '👑', condition: (m) => m.length >= 100 },
+      { id: 'ten_hours', name: '十小时陪伴', desc: '累计10小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 600 },
+      { id: 'fifty_hours', name: '五十小时', desc: '累计50小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 3000 },
+      { id: 'hundred_hours', name: '百小时里程碑', desc: '累计100小时', icon: '⏰', condition: (m) => getTotalMinutes(m) >= 6000 },
+    ];
+
+    // ========== 初始化 ==========
+    async function init() {
+      const savedConfig = localStorage.getItem('movie-together-config');
+      if (savedConfig) {
+        config = { ...config, ...JSON.parse(savedConfig) };
+      }
+      
+      const savedGenres = localStorage.getItem('movie-together-genres');
+      if (savedGenres) {
+        customGenres = JSON.parse(savedGenres);
+      }
+      
+      setTheme(config.theme);
+      applyOpacitySettings();
+      
+      await fetchCloudSettingsWithRetry(3);
+      
+      // 应用云端背景设置
+      if (cloudSettings.bgImage || cloudSettings.bgGif || cloudSettings.bgVideo) {
+        config.bgType = cloudSettings.bgType || 'image';
+        config.bgImage = cloudSettings.bgImage || '';
+        config.bgGif = cloudSettings.bgGif || '';
+        config.bgVideo = cloudSettings.bgVideo || '';
+        config.bgMaskOpacity = cloudSettings.bgMaskOpacity;
+        config.cardOpacity = cloudSettings.cardOpacity;
+        
+        updateBgInputsFromConfig();
+        applyBackground();
+      } else if (config.bgImage || config.bgGif || config.bgVideo) {
+        updateBgInputsFromConfig();
+        applyBackground();
+      }
+      
+      applyOpacitySettings();
+      document.getElementById('watch-date').valueAsDate = new Date();
+      
+      renderGenreOptions();
+      renderFilterOptions();
+      
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.onclick = () => navigate(btn.dataset.page);
+      });
+
+      document.getElementById('add-btn').onclick = () => showMovieModal();
+      document.getElementById('close-modal').onclick = () => hideMovieModal();
+      document.getElementById('movie-modal').onclick = (e) => { 
+        if (e.target.id === 'movie-modal') hideMovieModal(); 
+      };
+      
+      document.getElementById('movie-form').onsubmit = handleMovieSubmit;
+      document.getElementById('bg-file-input').addEventListener('change', handleBgUpload);
+
+      // 音乐播放结束自动播放下一首
+      document.getElementById('audio-player').addEventListener('ended', playNextTrack);
+
+      await fetchMovies();
+      renderHome();
+    }
+
+    function updateBgInputsFromConfig() {
+      // 更新单选框
+      document.querySelectorAll('input[name="bg-type"]').forEach(radio => {
+        radio.checked = radio.value === config.bgType;
+      });
+      onBgTypeChange();
+      
+      // 更新输入框
+      document.getElementById('bg-image-url').value = config.bgImage || '';
+      document.getElementById('bg-gif-url').value = config.bgGif || '';
+      document.getElementById('bg-video-url').value = config.bgVideo || '';
+    }
+
+    // ========== 透明度设置 ==========
+    function applyOpacitySettings() {
+      document.getElementById('bg-mask-opacity').value = config.bgMaskOpacity;
+      document.getElementById('bg-mask-opacity-value').textContent = config.bgMaskOpacity + '%';
+      document.getElementById('card-opacity').value = config.cardOpacity;
+      document.getElementById('card-opacity-value').textContent = config.cardOpacity + '%';
+      document.documentElement.style.setProperty('--card-bg-opacity', config.cardOpacity / 100);
+      
+      // 同时更新音乐面板透明度
+      updateMusicPanelOpacity();
+    }
+
+    function updateMusicPanelOpacity() {
+      const panel = document.getElementById('music-panel');
+      panel.style.setProperty('--panel-opacity', config.cardOpacity / 100);
+    }
+
+    // ========== 云端设置 ==========
+    async function fetchCloudSettingsWithRetry(retryCount) {
+      for (let i = 0; i < retryCount; i++) {
+        try {
+          await fetchCloudSettings();
+          if (cloudSettings.bgImage || cloudSettings.bgGif || cloudSettings.bgVideo || cloudSettings.cardOpacity !== 100) {
+            return;
+          }
+        } catch (e) {
+          console.log(`获取云端设置第${i+1}次失败:`, e);
+        }
+        if (i < retryCount - 1) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+    }
+
+    async function fetchCloudSettings() {
+      try {
+        const response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
+          headers: { 
+            'apikey': SUPABASE_KEY, 
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0 && data[0].value) {
+            const settings = JSON.parse(data[0].value);
+            cloudSettings = { ...cloudSettings, ...settings };
+          }
+        }
+      } catch (err) {
+        console.log('获取云端设置出错:', err);
+      }
+    }
+
+    async function saveCloudSettings() {
+      try {
+        const value = JSON.stringify({
+          bgType: cloudSettings.bgType,
+          bgImage: cloudSettings.bgImage,
+          bgGif: cloudSettings.bgGif,
+          bgVideo: cloudSettings.bgVideo,
+          bgMaskOpacity: cloudSettings.bgMaskOpacity,
+          cardOpacity: cloudSettings.cardOpacity
+        });
+        
+        let response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
+          method: 'GET',
+          headers: { 
+            'apikey': SUPABASE_KEY, 
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          }
+        });
+        
+        const existing = await response.json();
+        
+        if (existing && existing.length > 0) {
+          response = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.global', {
+            method: 'PATCH',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ value })
+          });
+        } else {
+          response = await fetch(SUPABASE_URL + '/rest/v1/settings', {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ key: 'global', value })
+          });
+        }
+      } catch (err) {
+        console.log('保存云端设置出错:', err);
+      }
+    }
+
+    // ========== 音乐功能 ==========
+    function toggleMusicPanel() {
+      const panel = document.getElementById('music-panel');
+      musicPanelOpen = !musicPanelOpen;
+      panel.classList.toggle('active', musicPanelOpen);
+    }
+
+    function playTrack(index) {
+      const audio = document.getElementById('audio-player');
+      
+      // 如果点击的是当前播放的曲目
+      if (currentTrackIndex === index) {
+        if (!audio.paused) {
+          // 暂停
+          audio.pause();
+          musicPaused = true;
+          document.getElementById('track-' + index + '-status').textContent = '▶';
+          updateMusicToggleButton();
+          return;
+        } else {
+          // 恢复播放
+          audio.play().catch(e => console.log('播放失败:', e));
+          musicPaused = false;
+          document.getElementById('track-' + index + '-status').textContent = '⏸';
+          updateMusicToggleButton();
+          return;
+        }
+      }
+      
+      // 切换到新曲目
+      if (currentTrackIndex >= 0) {
+        document.getElementById('track-' + currentTrackIndex + '-status').textContent = '▶';
+      }
+      
+      currentTrackIndex = index;
+      audio.src = musicTracks[index].url;
+      audio.volume = document.getElementById('volume-slider').value / 100;
+      
+      if (!musicMuted) {
+        audio.play().catch(e => console.log('播放失败:', e));
+        musicPaused = false;
+        document.getElementById('track-' + index + '-status').textContent = '⏸';
+      } else {
+        musicPaused = true;
+        document.getElementById('track-' + index + '-status').textContent = '▶';
+      }
+      
+      audio.volume = musicMuted ? 0 : document.getElementById('volume-slider').value / 100;
+      updateMusicToggleButton();
+    }
+
+    // 自动播放下一首
+    function playNextTrack() {
+      const nextIndex = (currentTrackIndex + 1) % musicTracks.length;
+      playTrack(nextIndex);
+    }
+
+    function toggleMusic() {
+      const audio = document.getElementById('audio-player');
+      
+      // 如果还没选择歌曲，先播放第一首
+      if (currentTrackIndex === -1) {
+        musicMuted = false;
+        musicPaused = false;
+        playTrack(0);
+        updateMusicToggleButton();
+        return;
+      }
+      
+      // 切换静音状态
+      musicMuted = !musicMuted;
+      
+      if (musicMuted) {
+        // 静音：暂停音乐
+        audio.pause();
+        musicPaused = true;
+        if (currentTrackIndex >= 0) {
+          document.getElementById('track-' + currentTrackIndex + '-status').textContent = '▶';
+        }
+      } else {
+        // 取消静音：继续播放
+        if (musicPaused) {
+          // 从暂停状态恢复
+          audio.play().catch(e => console.log('播放失败:', e));
+          musicPaused = false;
+        } else {
+          // 如果之前没有播放过这首歌，重新播放
+          audio.play().catch(e => console.log('播放失败:', e));
+        }
+        if (currentTrackIndex >= 0) {
+          document.getElementById('track-' + currentTrackIndex + '-status').textContent = '⏸';
+        }
+      }
+      
+      updateMusicToggleButton();
+    }
+
+    function updateMusicToggleButton() {
+      const btn = document.getElementById('music-toggle-btn');
+      btn.textContent = musicMuted ? '🔇' : '🔊';
+    }
+
+    function setVolume(value) {
+      const audio = document.getElementById('audio-player');
+      if (!musicMuted && !musicPaused) {
+        audio.volume = value / 100;
+      }
+    }
+
+    // ========== 类型选项 ==========
+    function renderGenreOptions() {
+      const container = document.getElementById('genre-group');
+      const allGenres = [...defaultGenres, ...customGenres];
+      container.innerHTML = allGenres.map(g => 
+        `<label><input type="checkbox" name="genre" value="${g.id}"> ${g.name}</label>`
+      ).join('');
+    }
+
+    function renderFilterOptions() {
+      const select = document.getElementById('genre-filter');
+      const allGenres = [...defaultGenres, ...customGenres];
+      select.innerHTML = '<option value="">全部类型</option>' + 
+        allGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    }
+
+    function addCustomGenre() {
+      const input = document.getElementById('new-genre');
+      const name = input.value.trim();
+      if (!name) return;
+      
+      const id = name.toLowerCase().replace(/\s+/g, '-');
+      if (customGenres.find(g => g.id === id)) {
+        alert('类型已存在');
+        return;
+      }
+      
+      customGenres.push({ id, name });
+      localStorage.setItem('movie-together-genres', JSON.stringify(customGenres));
+      input.value = '';
+      renderGenreOptions();
+      renderFilterOptions();
+    }
+
+    // ========== 主题 ==========
+    function setTheme(theme) {
+      config.theme = theme;
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('movie-together-config', JSON.stringify(config));
+      
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === theme);
+      });
+    }
+
+    // ========== 背景类型切换 ==========
+    function onBgTypeChange() {
+      const bgType = document.querySelector('input[name="bg-type"]:checked').value;
+      config.bgType = bgType;
+      
+      document.getElementById('bg-image-option').style.display = bgType === 'image' ? 'block' : 'none';
+      document.getElementById('bg-gif-option').style.display = bgType === 'gif' ? 'block' : 'none';
+      document.getElementById('bg-video-option').style.display = bgType === 'video' ? 'block' : 'none';
+    }
+
+    // ========== 实时背景控制 ==========
+    function onBgUrlChange() {
+      const bgType = document.querySelector('input[name="bg-type"]:checked').value;
+      let url = '';
+      if (bgType === 'image') url = document.getElementById('bg-image-url').value;
+      else if (bgType === 'gif') url = document.getElementById('bg-gif-url').value;
+      else if (bgType === 'video') url = document.getElementById('bg-video-url').value;
+      
+      if (bgType === 'image') config.bgImage = url;
+      else if (bgType === 'gif') config.bgGif = url;
+      else if (bgType === 'video') config.bgVideo = url;
+      
+      if (url) applyBackground();
+    }
+
+    function onBgMaskOpacityChange() {
+      const value = document.getElementById('bg-mask-opacity').value;
+      document.getElementById('bg-mask-opacity-value').textContent = value + '%';
+      applyBackground();
+    }
+
+    function onCardOpacityChange() {
+      const value = document.getElementById('card-opacity').value;
+      document.getElementById('card-opacity-value').textContent = value + '%';
+      document.documentElement.style.setProperty('--card-bg-opacity', value / 100);
+      updateMusicPanelOpacity();
+    }
+
+    function handleBgUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const isVideo = file.type.startsWith('video/');
+        const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+        
+        if (isVideo) {
+          config.bgVideo = e.target.result;
+          config.bgType = 'video';
+          document.getElementById('bg-video-option').style.display = 'block';
+          document.getElementById('bg-image-option').style.display = 'none';
+          document.getElementById('bg-gif-option').style.display = 'none';
+          document.querySelector('input[name="bg-type"][value="video"]').checked = true;
+        } else if (isGif) {
+          config.bgGif = e.target.result;
+          config.bgType = 'gif';
+          document.getElementById('bg-gif-option').style.display = 'block';
+          document.getElementById('bg-image-option').style.display = 'none';
+          document.getElementById('bg-video-option').style.display = 'none';
+          document.querySelector('input[name="bg-type"][value="gif"]').checked = true;
+        } else {
+          config.bgImage = e.target.result;
+          config.bgType = 'image';
+        }
+        
+        config.bgMaskOpacity = document.getElementById('bg-mask-opacity').value;
+        
+        applyBackground();
+        localStorage.setItem('movie-together-config', JSON.stringify(config));
+        
+        await saveCloudSettings();
+        alert('背景已应用并同步到云端！');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function saveBackgroundSettings() {
+      const bgType = document.querySelector('input[name="bg-type"]:checked').value;
+      const maskOpacity = document.getElementById('bg-mask-opacity').value;
+      const cardOpacity = document.getElementById('card-opacity').value;
+      
+      config.bgType = bgType;
+      config.bgImage = document.getElementById('bg-image-url').value;
+      config.bgGif = document.getElementById('bg-gif-url').value;
+      config.bgVideo = document.getElementById('bg-video-url').value;
+      config.bgMaskOpacity = maskOpacity;
+      config.cardOpacity = cardOpacity;
+      
+      cloudSettings = { ...config };
+      
+      applyBackground();
+      localStorage.setItem('movie-together-config', JSON.stringify(config));
+      saveCloudSettings();
+      
+      alert('设置已保存并同步到云端！\n另一台设备刷新页面即可看到');
+    }
+
+    function applyBackground() {
+      const maskOpacity = document.getElementById('bg-mask-opacity').value;
+      const bgType = config.bgType;
+      
+      // 移除旧的背景元素
+      const oldBg = document.getElementById('dynamic-bg');
+      if (oldBg) oldBg.remove();
+      
+      const oldVideo = document.getElementById('dynamic-video');
+      if (oldVideo) oldVideo.remove();
+      
+      let bgUrl = '';
+      if (bgType === 'image') bgUrl = config.bgImage;
+      else if (bgType === 'gif') bgUrl = config.bgGif;
+      else if (bgType === 'video') bgUrl = config.bgVideo;
+      
+      if (!bgUrl) return;
+      
+      if (bgType === 'video') {
+        // 视频背景
+        const video = document.createElement('video');
+        video.id = 'dynamic-video';
+        video.src = bgUrl;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:-2;';
+        document.body.insertBefore(video, document.body.firstChild);
+      } else {
+        // 图片/GIF背景
+        document.body.style.backgroundImage = `url(${bgUrl})`;
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center';
+        document.body.style.backgroundAttachment = 'fixed';
+      }
+      
+      // 遮罩层
+      let overlay = document.getElementById('bg-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'bg-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;pointer-events:none;';
+        document.body.insertBefore(overlay, document.body.firstChild);
+      }
+      
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      const bgColor = isDark ? '20,20,40' : '248,249,250';
+      overlay.style.backgroundColor = `rgba(${bgColor},${maskOpacity/100})`;
+    }
+
+    // ========== 导出Excel ==========
+    function exportToExcel() {
+      if (movies.length === 0) {
+        alert('没有数据可导出');
+        return;
+      }
+      
+      const headers = ['电影名称', '观看日期', '时长(分钟)', '类型', '记录人', '添加时间'];
+      const rows = movies.map(m => {
+        const createdAt = m.created_at ? new Date(m.created_at) : '';
+        return [
+          m.movie_name,
+          m.watch_date,
+          m.duration_minutes || '',
+          getGenreNames(m.genre),
+          m.created_by || '',
+          createdAt ? createdAt.toLocaleString('zh-CN') : ''
+        ];
+      });
+      
+      const escapeCSV = (str) => {
+        if (str === null || str === undefined) return '';
+        const s = String(str);
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      };
+      
+      const csvContent = [
+        headers.map(escapeCSV).join(','),
+        ...rows.map(row => row.map(escapeCSV).join(','))
+      ].join('\n');
+      
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `观影记录_${new Date().toLocaleDateString('zh-CN')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      alert('导出成功！文件已下载');
+    }
+
+    // ========== 管理员 ==========
+    function login() {
+      const password = document.getElementById('admin-password').value;
+      if (password === config.adminPassword) {
+        isAdmin = true;
+        document.getElementById('login-status').style.display = 'none';
+        document.getElementById('logged-in-status').style.display = 'block';
+        alert('登录成功！现在点击电影卡片可以编辑了');
+        renderHome();
+        renderMovies();
+      } else {
+        alert('密码错误');
+      }
+    }
+
+    function logout() {
+      isAdmin = false;
+      document.getElementById('login-status').style.display = 'block';
+      document.getElementById('logged-in-status').style.display = 'none';
+      document.getElementById('admin-password').value = '';
+      renderHome();
+      renderMovies();
+    }
+
+    // ========== Supabase API ==========
+    async function fetchMovies() {
+      try {
+        const response = await fetch(SUPABASE_URL + '/rest/v1/movies?order=watch_date.desc', {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+        });
+        if (!response.ok) throw new Error('Failed to fetch');
+        movies = await response.json();
+      } catch (err) {
+        console.error('Supabase error:', err);
+        const saved = localStorage.getItem('movies');
+        if (saved) movies = JSON.parse(saved);
+      }
+    }
+
+    async function saveMovie(movieData, id = null) {
+      try {
+        if (id) {
+          await fetch(SUPABASE_URL + '/rest/v1/movies?id=eq.' + id, {
+            method: 'PATCH',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(movieData)
+          });
+        } else {
+          await fetch(SUPABASE_URL + '/rest/v1/movies', {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(movieData)
+          });
+        }
+        await fetchMovies();
+        return true;
+      } catch (err) {
+        console.error('Save error:', err);
+        if (id) {
+          const idx = movies.findIndex(m => m.id === id);
+          if (idx >= 0) movies[idx] = { ...movies[idx], ...movieData };
+        } else {
+          movieData.id = Date.now();
+          movies.unshift(movieData);
+        }
+        localStorage.setItem('movies', JSON.stringify(movies));
+        return false;
+      }
+    }
+
+    async function deleteMovieFromDb(id) {
+      try {
+        await fetch(SUPABASE_URL + '/rest/v1/movies?id=eq.' + id, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY
+          }
+        });
+        movies = movies.filter(m => m.id !== id);
+      } catch (err) {
+        console.error('Delete error:', err);
+        movies = movies.filter(m => m.id !== id);
+        localStorage.setItem('movies', JSON.stringify(movies));
+      }
+    }
+
+    // ========== 工具函数 ==========
+    function getTotalMinutes(movieList) {
+      return movieList.reduce((sum, m) => sum + (m.duration_minutes || 0), 0);
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+
+    function getMonthKey(dateStr) {
+      const date = new Date(dateStr);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function getGenreName(id) {
+      const allGenres = [...defaultGenres, ...customGenres];
+      const g = allGenres.find(g => g.id === id);
+      return g ? g.name : id;
+    }
+
+    function getGenreNames(genres) {
+      if (!genres) return '';
+      return genres.split(',').map(g => getGenreName(g)).filter(Boolean).join(', ');
+    }
+
+    // ========== 页面导航 ==========
+    function navigate(page) {
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.page === page);
+      });
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(page + '-page').classList.add('active');
+
+      const titles = {
+        home: { title: '第 X 次一起看', subtitle: '记录我们的观影时光' },
+        movies: { title: '观影记录', subtitle: '我们的电影清单' },
+        achievements: { title: '成就徽章', subtitle: '解锁我们的里程碑' },
+        stats: { title: '数据统计', subtitle: '一起看过的点点滴滴' }
+      };
+      document.getElementById('page-title').textContent = titles[page].title;
+      document.getElementById('page-subtitle').textContent = titles[page].subtitle;
+
+      if (page === 'home') renderHome();
+      if (page === 'movies') renderMovies();
+      if (page === 'achievements') renderAchievements();
+      if (page === 'stats') renderStats();
+    }
+
+    // ========== 渲染函数 ==========
+    function renderHome() {
+      const sorted = [...movies].sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
+      const totalMinutes = getTotalMinutes(movies);
+
+      document.getElementById('total-movies').textContent = movies.length;
+      document.getElementById('total-hours').textContent = Math.floor(totalMinutes / 60);
+      document.getElementById('total-minutes').textContent = totalMinutes % 60;
+      document.getElementById('page-title').textContent = '第 ' + movies.length + ' 次一起看';
+
+      const recentDiv = document.getElementById('recent-movies');
+      if (sorted.length === 0) {
+        recentDiv.innerHTML = '<p class="empty-state">还没有记录，开始你们的第一次吧～</p>';
+      } else {
+        recentDiv.innerHTML = sorted.slice(0, 3).map(m => renderMovieCard(m)).join('');
+      }
+      
+      bindMovieCardClicks();
+    }
+
+    function renderMovieCard(m) {
+      const genreHtml = m.genre ? '<span class="movie-badge">' + getGenreNames(m.genre) + '</span>' : '';
+      return '<div class="movie-card" data-id="' + m.id + '">' +
+        '<div class="movie-info">' +
+        '<div class="movie-title">' + m.movie_name + '</div>' +
+        '<div class="movie-meta">' + formatDate(m.watch_date) + ' · ' + (m.duration_minutes || '?') + '分钟' + (m.created_by ? ' · ' + m.created_by : '') + '</div></div>' +
+        genreHtml + '</div>';
+    }
+
+    function renderMovies() {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const genre = document.getElementById('genre-filter').value;
+      let filtered = [...movies].sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
+      
+      if (search) filtered = filtered.filter(m => m.movie_name.toLowerCase().includes(search));
+      if (genre) filtered = filtered.filter(m => (m.genre || '').includes(genre));
+
+      const container = document.getElementById('all-movies');
+      if (filtered.length === 0) {
+        container.innerHTML = '<p class="empty-state">没有找到匹配的电影</p>';
+      } else {
+        container.innerHTML = filtered.map(m => renderMovieCard(m)).join('');
+      }
+      
+      bindMovieCardClicks();
+    }
+
+    function bindMovieCardClicks() {
+      document.querySelectorAll('.movie-card').forEach(card => {
+        card.onclick = function() {
+          const id = this.getAttribute('data-id');
+          handleMovieCardClick(id);
+        };
+      });
+    }
+
+    function handleMovieCardClick(id) {
+      if (isAdmin) {
+        const movie = movies.find(m => m.id == id);
+        if (movie) showMovieModal(movie);
+      } else {
+        alert('点击电影卡片可编辑记录\n\n请先在设置中登录管理员账号\n默认密码：movie2024');
+        showSettings();
+      }
+    }
+
+    function filterMovies() { renderMovies(); }
+
+    function renderAchievements() {
+      const container = document.getElementById('achievements-grid');
+      container.innerHTML = achievements.map(a => {
+        const unlocked = a.condition(movies);
+        return '<div class="achievement-card ' + (unlocked ? 'unlocked' : '') + '">' +
+          '<div class="achievement-icon">' + a.icon + '</div>' +
+          '<div class="achievement-name">' + a.name + '</div>' +
+          '<div class="achievement-desc">' + a.desc + '</div></div>';
+      }).join('');
+    }
+
+    function renderStats() {
+      const totalMinutes = getTotalMinutes(movies);
+      document.getElementById('stat-total').textContent = movies.length;
+      document.getElementById('stat-hours').textContent = Math.floor(totalMinutes / 60);
+      document.getElementById('stat-avg').textContent = movies.length ? Math.round(totalMinutes / movies.length) : 0;
+
+      // 类型统计
+      const genreCounts = {};
+      movies.forEach(m => {
+        if (m.genre) {
+          m.genre.split(',').forEach(g => {
+            if (g) genreCounts[g] = (genreCounts[g] || 0) + 1;
+          });
+        }
+      });
+      
+      // 绘制扇形图
+      drawPieChart(genreCounts);
+      
+      // 列表
+      const colors = ['#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#74B9FF', '#A29BFE', '#FD79A8', '#00CEC9'];
+      document.getElementById('genre-chart').innerHTML = Object.entries(genreCounts).map((g, i) => {
+        const [genre, count] = g;
+        const percentage = movies.length ? Math.round(count / movies.length * 100) : 0;
+        return '<div class="genre-item"><span class="genre-dot" style="background:' + colors[i % colors.length] + '"></span><span>' + getGenreName(genre) + '</span><span class="genre-count">' + count + ' (' + percentage + '%)</span></div>';
+      }).join('') || '<p class="empty-state">暂无数据</p>';
+
+      // 月度统计
+      const monthlyCounts = {};
+      movies.forEach(m => { const k = getMonthKey(m.watch_date); monthlyCounts[k] = (monthlyCounts[k] || 0) + 1; });
+      const sortedMonths = Object.keys(monthlyCounts).sort().slice(-6);
+      const maxCount = Math.max(...Object.values(monthlyCounts), 1);
+      document.getElementById('monthly-chart').innerHTML = sortedMonths.map(m => {
+        const c = monthlyCounts[m];
+        const h = (c / maxCount) * 100;
+        return '<div class="month-bar" style="height:' + h + '%" data-count="' + c + '"></div>';
+      }).join('');
+    }
+
+    // 绘制扇形图
+    function drawPieChart(genreCounts) {
+      const canvas = document.getElementById('pie-chart');
+      const ctx = canvas.getContext('2d');
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = 80;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const entries = Object.entries(genreCounts);
+      if (entries.length === 0) {
+        // 绘制空圆
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = '#E0E0E0';
+        ctx.fill();
+        ctx.fillStyle = '#636E72';
+        ctx.font = '14px Noto Sans SC';
+        ctx.textAlign = 'center';
+        ctx.fillText('暂无数据', centerX, centerY);
+        return;
+      }
+      
+      const total = entries.reduce((sum, [, count]) => sum + count, 0);
+      const colors = ['#6C5CE7', '#00B894', '#FDCB6E', '#E17055', '#74B9FF', '#A29BFE', '#FD79A8', '#00CEC9'];
+      
+      let startAngle = -Math.PI / 2;
+      
+      entries.forEach(([, count], i) => {
+        const sliceAngle = (count / total) * 2 * Math.PI;
+        
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        
+        // 添加白色间隔
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        startAngle += sliceAngle;
+      });
+      
+      // 中心圆
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 40, 0, 2 * Math.PI);
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      ctx.fillStyle = isDark ? '#1a1a2e' : '#F8F9FA';
+      ctx.fill();
+    }
+
+    // ========== 弹窗操作 ==========
+    function showMovieModal(movie = null) {
+      // 登录验证：新增电影需要先登录
+      if (!movie && !isAdmin) {
+        alert('请先登录后再添加观影记录\n\n点击「设置」页面进行登录\n默认密码：movie2024');
+        showSettings();
+        return;
+      }
+      
+      const modal = document.getElementById('movie-modal');
+      const deleteBtn = document.getElementById('delete-btn');
+      
+      if (movie) {
+        document.getElementById('modal-title').textContent = '编辑观影记录';
+        document.getElementById('movie-id').value = movie.id;
+        document.getElementById('movie-name').value = movie.movie_name;
+        document.getElementById('watch-date').value = movie.watch_date;
+        document.getElementById('duration').value = movie.duration_minutes || '';
+        document.getElementById('created-by').value = movie.created_by || '';
+        
+        const genres = (movie.genre || '').split(',');
+        document.querySelectorAll('input[name="genre"]').forEach(cb => {
+          cb.checked = genres.includes(cb.value);
+        });
+        
+        deleteBtn.style.display = 'block';
+      } else {
+        document.getElementById('modal-title').textContent = '添加观影记录';
+        document.getElementById('movie-form').reset();
+        document.getElementById('movie-id').value = '';
+        document.getElementById('watch-date').valueAsDate = new Date();
+        document.querySelectorAll('input[name="genre"]').forEach(cb => cb.checked = false);
+        deleteBtn.style.display = 'none';
+      }
+      
+      modal.classList.add('active');
+    }
+
+    function hideMovieModal() {
+      document.getElementById('movie-modal').classList.remove('active');
+    }
+
+    function showSettings() {
+      document.getElementById('settings-modal').classList.add('active');
+    }
+
+    function hideSettings() {
+      document.getElementById('settings-modal').classList.remove('active');
+    }
+
+    function deleteMovie() {
+      const id = document.getElementById('movie-id').value;
+      if (!id) return;
+      
+      if (confirm('确定要删除这条记录吗？')) {
+        deleteMovieFromDb(id);
+        hideMovieModal();
+        renderHome();
+        renderMovies();
+        renderAchievements();
+        renderStats();
+        alert('删除成功');
+      }
+    }
+
+    async function handleMovieSubmit(e) {
+      e.preventDefault();
+      
+      const genres = [];
+      document.querySelectorAll('input[name="genre"]:checked').forEach(cb => {
+        genres.push(cb.value);
+      });
+      
+      const movieData = {
+        movie_name: document.getElementById('movie-name').value,
+        watch_date: document.getElementById('watch-date').value,
+        duration_minutes: parseInt(document.getElementById('duration').value) || null,
+        genre: genres.join(','),
+        created_by: document.getElementById('created-by').value || 'TA'
+      };
+      
+      const id = document.getElementById('movie-id').value;
+      const saved = await saveMovie(movieData, id || null);
+      
+      hideMovieModal();
+      renderHome();
+      renderMovies();
+      renderAchievements();
+      renderStats();
+      
+      alert(saved ? (id ? '更新成功！' : '添加成功！') : '保存成功！（本地模式）');
+    }
+
+    init();
+  </script>
+</body>
+</html>
