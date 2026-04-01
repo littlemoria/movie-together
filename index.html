@@ -417,6 +417,12 @@
       // 立即尝试播放（使用静音绕过浏览器限制）
       const attemptAutoplay = async () => {
         try {
+          // 检查浏览器自动播放策略
+          if (navigator.getAutoplayPolicy) {
+            const policy = navigator.getAutoplayPolicy('mediaelement');
+            console.log('Autoplay policy:', policy);
+          }
+          
           // 先静音播放
           audio.muted = true;
           await audio.play();
