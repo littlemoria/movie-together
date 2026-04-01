@@ -260,7 +260,7 @@
     </div>
 
     <!-- 音乐播放 -->
-    <audio id="audio-player" preload="auto" autoplay muted></audio>
+    <audio id="audio-player" preload="auto"></audio>
   </div>
 
   <nav class="bottom-nav">
@@ -401,41 +401,54 @@
       // 音乐播放结束自动播放下一首
       document.getElementById('audio-player').addEventListener('ended', playNextTrack);
 
-      // 初始化音频播放器
+      // 初始化音频播放器 - 自动播放策略
       const audio = document.getElementById('audio-player');
       
       // 设置初始状态
       musicMuted = false;
+      musicPaused = false;
       updateMusicToggleButton();
 
-      // 策略：HTML audio 标签已设置 autoplay muted，浏览器会自动开始静音播放
-      // 我们需要在 JS 中设置 src 并尝试取消静音
+      // 设置音频源
       audio.src = musicTracks[0].url;
-      currentTrackIndex = 0;
       audio.volume = 0.12;
-      
-      // 监听播放开始事件
-      audio.addEventListener('playing', function onPlaying() {
-        // 播放已开始，更新 UI
-        document.getElementById('track-0-status').textContent = '⏸';
-        musicPaused = false;
-        
-        // 尝试取消静音（可能需要用户交互）
-        setTimeout(() => {
-          audio.muted = false;
-        }, 200);
-        
-        // 移除监听器
-        audio.removeEventListener('playing', onPlaying);
-      });
-      
-      // 监听错误事件
-      audio.addEventListener('error', function onError() {
-        console.log('音频加载失败，尝试重新播放');
-        audio.load();
-        audio.play().catch(e => console.log('重试播放失败:', e));
-        audio.removeEventListener('error', onError);
-      });
+      currentTrackIndex = 0;
+
+      // 立即尝试播放（使用静音绕过浏览器限制）
+      const attemptAutoplay = async () => {
+        try {
+          // 先静音播放
+          audio.muted = true;
+          await audio.play();
+          
+          // 播放成功，更新 UI
+          document.getElementById('track-0-status').textContent = '⏸';
+          
+          // 尝试立即取消静音
+          const unmuteAttempt = () => {
+            try {
+              audio.muted = false;
+            } catch (e) {
+              // 取消静音失败，用户可能需要与页面交互
+            }
+          };
+          
+          // 多次尝试取消静音
+          unmuteAttempt();
+          setTimeout(unmuteAttempt, 50);
+          setTimeout(unmuteAttempt, 100);
+          setTimeout(unmuteAttempt, 200);
+          setTimeout(unmuteAttempt, 500);
+          
+        } catch (e) {
+          // 自动播放被阻止，静默失败
+          // 用户可以通过音乐按钮手动开启
+          console.log('自动播放需要用户交互');
+        }
+      };
+
+      // 页面加载后立即尝试
+      attemptAutoplay();
 
       await fetchMovies();
       renderHome();
