@@ -261,6 +261,11 @@
 
     <!-- 音乐播放 -->
     <audio id="audio-player" preload="auto"></audio>
+
+    <!-- 音乐播放提示 -->
+    <div id="music-hint" class="music-hint" style="display:none;">
+      <span>🎵 点击任意位置开始播放音乐</span>
+    </div>
   </div>
 
   <nav class="bottom-nav">
@@ -401,15 +406,49 @@
       // 音乐播放结束自动播放下一首
       document.getElementById('audio-player').addEventListener('ended', playNextTrack);
 
-      // 页面加载完成后自动播放第一首，音量12%（默认不静音）
-      document.getElementById('audio-player').volume = 0.12;
-      musicMuted = false;  // 默认不静音
+      // 预加载第一首歌
+      const audio = document.getElementById('audio-player');
+      audio.src = musicTracks[0].url;
+      audio.volume = 0.12;
+      musicMuted = false;
       updateMusicToggleButton();
-      // 使用 requestAnimationFrame 确保在用户首次交互后尝试播放
-      document.addEventListener('click', function initMusic() {
-        setTimeout(() => playTrack(0), 100);
-        document.removeEventListener('click', initMusic);
-      }, { once: true });
+
+      // 尝试立即自动播放
+      tryAutoPlay();
+
+      async function tryAutoPlay() {
+        try {
+          await audio.play();
+          // 自动播放成功
+          currentTrackIndex = 0;
+          musicPaused = false;
+          document.getElementById('track-0-status').textContent = '⏸';
+        } catch (e) {
+          // 自动播放被浏览器阻止，显示提示
+          showMusicHint();
+        }
+      }
+
+      function showMusicHint() {
+        const hint = document.getElementById('music-hint');
+        hint.style.display = 'flex';
+        
+        // 监听各种用户交互事件
+        const events = ['click', 'touchstart', 'scroll', 'keydown'];
+        const startMusic = function() {
+          audio.play().then(() => {
+            currentTrackIndex = 0;
+            musicPaused = false;
+            document.getElementById('track-0-status').textContent = '⏸';
+            hint.style.display = 'none';
+          }).catch(err => console.log('播放失败:', err));
+          
+          // 移除所有监听
+          events.forEach(evt => document.removeEventListener(evt, startMusic));
+        };
+        
+        events.forEach(evt => document.addEventListener(evt, startMusic, { once: true }));
+      }
 
       await fetchMovies();
       renderHome();
