@@ -1162,31 +1162,3 @@ body {
 .bg-type-selector input[type="radio"] {
   accent-color: var(--accent);
 }
-
-/* 音乐播放提示 */
-.music-hint {
-  position: fixed;
-  top: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, var(--accent), var(--accent-light));
-  color: white;
-  padding: 12px 20px;
-  border-radius: 30px;
-  font-size: 14px;
-  box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
-  z-index: 999;
-  animation: hint-pulse 2s infinite ease-in-out;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-@keyframes hint-pulse {
-  0%, 100% { transform: translateX(-50%) scale(1); opacity: 1; }
-  50% { transform: translateX(-50%) scale(1.02); opacity: 0.9; }
-}
-
-.music-hint span {
-  white-space: nowrap;
-}

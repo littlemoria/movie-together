@@ -261,11 +261,6 @@
 
     <!-- 音乐播放 -->
     <audio id="audio-player" preload="auto"></audio>
-
-    <!-- 音乐播放提示 -->
-    <div id="music-hint" class="music-hint" style="display:none;">
-      <span>🎵 点击任意位置开始播放音乐</span>
-    </div>
   </div>
 
   <nav class="bottom-nav">
@@ -406,48 +401,61 @@
       // 音乐播放结束自动播放下一首
       document.getElementById('audio-player').addEventListener('ended', playNextTrack);
 
-      // 预加载第一首歌
+      // 初始化音频播放器
       const audio = document.getElementById('audio-player');
       audio.src = musicTracks[0].url;
-      audio.volume = 0.12;
-      musicMuted = false;
-      updateMusicToggleButton();
+      
+      // 策略：先静音自动播放（浏览器允许），然后尝试取消静音
+      initAutoPlay();
 
-      // 尝试立即自动播放
-      tryAutoPlay();
-
-      async function tryAutoPlay() {
+      async function initAutoPlay() {
+        // 先设置静音
+        audio.muted = true;
+        audio.volume = 0.12;
+        
         try {
+          // 静音播放（浏览器通常允许）
           await audio.play();
-          // 自动播放成功
           currentTrackIndex = 0;
           musicPaused = false;
           document.getElementById('track-0-status').textContent = '⏸';
-        } catch (e) {
-          // 自动播放被浏览器阻止，显示提示
-          showMusicHint();
-        }
-      }
-
-      function showMusicHint() {
-        const hint = document.getElementById('music-hint');
-        hint.style.display = 'flex';
-        
-        // 监听各种用户交互事件
-        const events = ['click', 'touchstart', 'scroll', 'keydown'];
-        const startMusic = function() {
-          audio.play().then(() => {
-            currentTrackIndex = 0;
-            musicPaused = false;
-            document.getElementById('track-0-status').textContent = '⏸';
-            hint.style.display = 'none';
-          }).catch(err => console.log('播放失败:', err));
           
-          // 移除所有监听
-          events.forEach(evt => document.removeEventListener(evt, startMusic));
-        };
-        
-        events.forEach(evt => document.addEventListener(evt, startMusic, { once: true }));
+          // 短暂延迟后尝试取消静音
+          setTimeout(async () => {
+            try {
+              audio.muted = false;
+              // 如果取消静音成功，更新状态
+              musicMuted = false;
+              updateMusicToggleButton();
+            } catch (e) {
+              // 如果取消静音失败，保持静音状态
+              console.log('取消静音需要用户交互');
+            }
+          }, 100);
+          
+        } catch (e) {
+          // 如果连静音播放都失败，尝试其他方法
+          console.log('自动播放被阻止，尝试其他方法');
+          
+          // 某些浏览器在页面完全加载后允许播放
+          window.addEventListener('load', async () => {
+            try {
+              audio.muted = true;
+              await audio.play();
+              currentTrackIndex = 0;
+              musicPaused = false;
+              document.getElementById('track-0-status').textContent = '⏸';
+              
+              setTimeout(() => {
+                audio.muted = false;
+                musicMuted = false;
+                updateMusicToggleButton();
+              }, 100);
+            } catch (err) {
+              console.log('所有自动播放尝试失败');
+            }
+          });
+        }
       }
 
       await fetchMovies();
@@ -596,6 +604,7 @@
           return;
         } else {
           // 恢复播放
+          audio.muted = musicMuted;
           audio.play().catch(e => console.log('播放失败:', e));
           musicPaused = false;
           document.getElementById('track-' + index + '-status').textContent = '⏸';
@@ -612,17 +621,12 @@
       currentTrackIndex = index;
       audio.src = musicTracks[index].url;
       audio.volume = document.getElementById('volume-slider').value / 100;
+      audio.muted = musicMuted;
       
-      if (!musicMuted) {
-        audio.play().catch(e => console.log('播放失败:', e));
-        musicPaused = false;
-        document.getElementById('track-' + index + '-status').textContent = '⏸';
-      } else {
-        musicPaused = true;
-        document.getElementById('track-' + index + '-status').textContent = '▶';
-      }
+      audio.play().catch(e => console.log('播放失败:', e));
+      musicPaused = false;
+      document.getElementById('track-' + index + '-status').textContent = '⏸';
       
-      audio.volume = musicMuted ? 0 : document.getElementById('volume-slider').value / 100;
       updateMusicToggleButton();
     }
 
@@ -639,6 +643,7 @@
       if (currentTrackIndex === -1) {
         musicMuted = false;
         musicPaused = false;
+        audio.muted = false;
         playTrack(0);
         updateMusicToggleButton();
         return;
@@ -646,6 +651,7 @@
       
       // 切换静音状态
       musicMuted = !musicMuted;
+      audio.muted = musicMuted;
       
       if (musicMuted) {
         // 静音：暂停音乐
@@ -656,10 +662,12 @@
         }
       } else {
         // 取消静音：继续播放
+        audio.muted = false;
         if (musicPaused) {
           // 从暂停状态恢复
           audio.play().catch(e => console.log('播放失败:', e));
           musicPaused = false;
+        }
         } else {
           // 如果之前没有播放过这首歌，重新播放
           audio.play().catch(e => console.log('播放失败:', e));
@@ -679,9 +687,7 @@
 
     function setVolume(value) {
       const audio = document.getElementById('audio-player');
-      if (!musicMuted && !musicPaused) {
-        audio.volume = value / 100;
-      }
+      audio.volume = value / 100;
     }
 
     // ========== 类型选项 ==========
