@@ -96,6 +96,8 @@
             </select>
           </div>
           <button class="btn-export" onclick="exportToExcel()">📥 导出数据</button>
+          <button class="btn-import" onclick="triggerImport()">📤 导入数据</button>
+          <input type="file" id="import-file-input" accept=".csv" style="display:none" onchange="handleImportFile(event)">
         </div>
         <div id="all-movies" class="movie-list"></div>
       </section>
@@ -892,6 +894,199 @@
       document.body.removeChild(link);
       
       alert('导出成功！文件已下载');
+    }
+
+    // ========== 导入CSV ==========
+    function triggerImport() {
+      document.getElementById('import-file-input').click();
+    }
+
+    function handleImportFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const content = e.target.result;
+        const parsed = parseCSV(content);
+        
+        if (parsed.length === 0) {
+          alert('CSV 文件为空或格式不正确');
+          return;
+        }
+        
+        // 询问导入模式
+        const mode = confirm('点击"确定"追加数据（保留现有记录）\n点击"取消"覆盖数据（清除现有记录）') ? 'append' : 'overwrite';
+        
+        if (mode === 'overwrite') {
+          if (!confirm('⚠️ 覆盖模式将删除所有现有记录！\n\n确定要继续吗？')) {
+            event.target.value = '';
+            return;
+          }
+        }
+        
+        importMovies(parsed, mode);
+      };
+      reader.readAsText(file, 'UTF-8');
+      event.target.value = ''; // 重置以便再次选择同一文件
+    }
+
+    function parseCSV(content) {
+      // 移除 BOM 头
+      if (content.charCodeAt(0) === 0xFEFF) {
+        content = content.slice(1);
+      }
+      
+      const lines = content.split(/\r?\n/).filter(line => line.trim());
+      if (lines.length < 2) return [];
+      
+      // 解析表头
+      const headers = parseCSVLine(lines[0]);
+      const result = [];
+      
+      // 映射表头到字段
+      const headerMap = {
+        '电影名称': 'movie_name',
+        '观看日期': 'watch_date',
+        '时长(分钟)': 'duration_minutes',
+        '类型': 'genre',
+        '记录人': 'created_by',
+        '添加时间': 'created_at'
+      };
+      
+      // 找到各列的索引
+      const indices = {};
+      headers.forEach((h, i) => {
+        const key = h.trim();
+        if (headerMap[key]) {
+          indices[headerMap[key]] = i;
+        }
+      });
+      
+      // 解析数据行
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        if (values.length === 0 || !values[indices.movie_name]) continue;
+        
+        const movie = {
+          movie_name: values[indices.movie_name] || '',
+          watch_date: values[indices.watch_date] || new Date().toISOString().split('T')[0],
+          duration_minutes: values[indices.duration_minutes] ? parseInt(values[indices.duration_minutes]) : null,
+          genre: values[indices.genre] || '',
+          created_by: values[indices.created_by] || 'TA'
+        };
+        
+        // 转换类型名称为 ID
+        if (movie.genre) {
+          movie.genre = convertGenreNamesToIds(movie.genre);
+        }
+        
+        if (movie.movie_name) {
+          result.push(movie);
+        }
+      }
+      
+      return result;
+    }
+
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (inQuotes) {
+          if (char === '"') {
+            if (line[i + 1] === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            current += char;
+          }
+        } else {
+          if (char === '"') {
+            inQuotes = true;
+          } else if (char === ',') {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+      }
+      result.push(current.trim());
+      return result;
+    }
+
+    function convertGenreNamesToIds(genreStr) {
+      const allGenres = [...defaultGenres, ...customGenres];
+      const names = genreStr.split(/[,，、]/).map(n => n.trim()).filter(Boolean);
+      const ids = names.map(name => {
+        const found = allGenres.find(g => g.name === name || g.id === name);
+        return found ? found.id : name.toLowerCase();
+      });
+      return ids.join(',');
+    }
+
+    async function importMovies(newMovies, mode) {
+      try {
+        // 覆盖模式：先删除所有现有记录
+        if (mode === 'overwrite') {
+          // 删除所有记录
+          const deletePromises = movies.map(m => 
+            fetch(SUPABASE_URL + '/rest/v1/movies?id=eq.' + m.id, {
+              method: 'DELETE',
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_KEY
+              }
+            })
+          );
+          await Promise.all(deletePromises);
+          movies = [];
+        }
+        
+        // 批量插入新记录
+        const batchSize = 50;
+        let inserted = 0;
+        
+        for (let i = 0; i < newMovies.length; i += batchSize) {
+          const batch = newMovies.slice(i, i + batchSize);
+          const response = await fetch(SUPABASE_URL + '/rest/v1/movies', {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(batch)
+          });
+          
+          if (response.ok) {
+            inserted += batch.length;
+          } else {
+            console.error('Batch insert failed:', await response.text());
+          }
+        }
+        
+        // 重新加载数据
+        await fetchMovies();
+        renderHome();
+        renderMovies();
+        renderAchievements();
+        renderStats();
+        
+        alert(`导入成功！共导入 ${inserted} 条记录`);
+      } catch (err) {
+        console.error('Import error:', err);
+        alert('导入失败: ' + err.message);
+      }
     }
 
     // ========== 管理员 ==========

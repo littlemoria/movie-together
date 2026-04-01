@@ -316,6 +316,21 @@ body {
   align-self: flex-end;
 }
 
+.btn-import {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  align-self: flex-end;
+}
+
+.btn-import:hover {
+  opacity: 0.9;
+}
+
 /* 保存背景按钮 */
 .btn-save-bg {
   margin-top: 12px;
