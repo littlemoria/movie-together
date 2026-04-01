@@ -401,60 +401,15 @@
       // 音乐播放结束自动播放下一首
       document.getElementById('audio-player').addEventListener('ended', playNextTrack);
 
-      // 初始化音频播放器 - 自动播放策略
-      const audio = document.getElementById('audio-player');
-      
-      // 设置初始状态
-      musicMuted = false;
-      musicPaused = false;
+      // 页面加载完成后自动播放第一首，音量12%（默认不静音）
+      document.getElementById('audio-player').volume = 0.12;
+      musicMuted = false;  // 默认不静音
       updateMusicToggleButton();
-
-      // 设置音频源
-      audio.src = musicTracks[0].url;
-      audio.volume = 0.12;
-      currentTrackIndex = 0;
-
-      // 立即尝试播放（使用静音绕过浏览器限制）
-      const attemptAutoplay = async () => {
-        try {
-          // 检查浏览器自动播放策略
-          if (navigator.getAutoplayPolicy) {
-            const policy = navigator.getAutoplayPolicy('mediaelement');
-            console.log('Autoplay policy:', policy);
-          }
-          
-          // 先静音播放
-          audio.muted = true;
-          await audio.play();
-          
-          // 播放成功，更新 UI
-          document.getElementById('track-0-status').textContent = '⏸';
-          
-          // 尝试立即取消静音
-          const unmuteAttempt = () => {
-            try {
-              audio.muted = false;
-            } catch (e) {
-              // 取消静音失败，用户可能需要与页面交互
-            }
-          };
-          
-          // 多次尝试取消静音
-          unmuteAttempt();
-          setTimeout(unmuteAttempt, 50);
-          setTimeout(unmuteAttempt, 100);
-          setTimeout(unmuteAttempt, 200);
-          setTimeout(unmuteAttempt, 500);
-          
-        } catch (e) {
-          // 自动播放被阻止，静默失败
-          // 用户可以通过音乐按钮手动开启
-          console.log('自动播放需要用户交互');
-        }
-      };
-
-      // 页面加载后立即尝试
-      attemptAutoplay();
+      // 使用 requestAnimationFrame 确保在用户首次交互后尝试播放
+      document.addEventListener('click', function initMusic() {
+        setTimeout(() => playTrack(0), 100);
+        document.removeEventListener('click', initMusic);
+      }, { once: true });
 
       await fetchMovies();
       renderHome();
@@ -602,7 +557,6 @@
           return;
         } else {
           // 恢复播放
-          audio.muted = musicMuted;
           audio.play().catch(e => console.log('播放失败:', e));
           musicPaused = false;
           document.getElementById('track-' + index + '-status').textContent = '⏸';
@@ -619,12 +573,17 @@
       currentTrackIndex = index;
       audio.src = musicTracks[index].url;
       audio.volume = document.getElementById('volume-slider').value / 100;
-      audio.muted = musicMuted;
       
-      audio.play().catch(e => console.log('播放失败:', e));
-      musicPaused = false;
-      document.getElementById('track-' + index + '-status').textContent = '⏸';
+      if (!musicMuted) {
+        audio.play().catch(e => console.log('播放失败:', e));
+        musicPaused = false;
+        document.getElementById('track-' + index + '-status').textContent = '⏸';
+      } else {
+        musicPaused = true;
+        document.getElementById('track-' + index + '-status').textContent = '▶';
+      }
       
+      audio.volume = musicMuted ? 0 : document.getElementById('volume-slider').value / 100;
       updateMusicToggleButton();
     }
 
@@ -641,7 +600,6 @@
       if (currentTrackIndex === -1) {
         musicMuted = false;
         musicPaused = false;
-        audio.muted = false;
         playTrack(0);
         updateMusicToggleButton();
         return;
@@ -649,7 +607,6 @@
       
       // 切换静音状态
       musicMuted = !musicMuted;
-      audio.muted = musicMuted;
       
       if (musicMuted) {
         // 静音：暂停音乐
@@ -660,12 +617,10 @@
         }
       } else {
         // 取消静音：继续播放
-        audio.muted = false;
         if (musicPaused) {
           // 从暂停状态恢复
           audio.play().catch(e => console.log('播放失败:', e));
           musicPaused = false;
-        }
         } else {
           // 如果之前没有播放过这首歌，重新播放
           audio.play().catch(e => console.log('播放失败:', e));
@@ -685,7 +640,9 @@
 
     function setVolume(value) {
       const audio = document.getElementById('audio-player');
-      audio.volume = value / 100;
+      if (!musicMuted && !musicPaused) {
+        audio.volume = value / 100;
+      }
     }
 
     // ========== 类型选项 ==========
