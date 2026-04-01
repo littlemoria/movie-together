@@ -120,8 +120,8 @@ create table movies (
 - 目前URL包含github用户名 littlemoria
 - 可考虑使用自定义域名让URL更优雅
 
-### 6. 修改管理员密码
-- 当前密码: movie2024
+### 6. 修改管理员密码 ✅ 已完成
+- 当前密码: huiwan111
 - 可修改为更个性化的密码
 
 ### 7. GitHub仓库安全和隐私

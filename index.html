@@ -332,7 +332,7 @@
       bgVideo: '',
       bgMaskOpacity: 30,
       cardOpacity: 100,
-      adminPassword: 'movie2024'
+      adminPassword: 'huiwan111'
     };
 
     const achievements = [
@@ -1294,7 +1294,7 @@
         const movie = movies.find(m => m.id == id);
         if (movie) showMovieModal(movie);
       } else {
-        alert('点击电影卡片可编辑记录\n\n请先在设置中登录管理员账号\n默认密码：movie2024');
+        alert('点击电影卡片可编辑记录\n\n请先在设置中登录管理员账号\n默认密码：huiwan111');
         showSettings();
       }
     }
@@ -1428,7 +1428,7 @@
     function showMovieModal(movie = null) {
       // 登录验证：新增电影需要先登录
       if (!movie && !isAdmin) {
-        alert('请先登录后再添加观影记录\n\n点击「设置」页面进行登录\n默认密码：movie2024');
+        alert('请先登录后再添加观影记录\n\n点击「设置」页面进行登录\n默认密码：huiwan111');
         showSettings();
         return;
       }
