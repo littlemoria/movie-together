@@ -347,11 +347,16 @@
     ];
 
     // ========== 初始化 ==========
+    // 强制使用默认密码，不被旧缓存覆盖
+    const DEFAULT_ADMIN_PASSWORD = 'huiwan111';
+    
     async function init() {
       const savedConfig = localStorage.getItem('movie-together-config');
       if (savedConfig) {
         config = { ...config, ...JSON.parse(savedConfig) };
       }
+      // 强制使用默认密码，防止旧缓存覆盖
+      config.adminPassword = DEFAULT_ADMIN_PASSWORD;
       
       const savedGenres = localStorage.getItem('movie-together-genres');
       if (savedGenres) {
