@@ -150,7 +150,11 @@
           <input type="hidden" id="movie-id">
           <div class="form-group">
             <label>电影名称 *</label>
-            <input type="text" id="movie-name" required placeholder="输入电影名">
+            <div class="movie-search-wrapper">
+              <input type="text" id="movie-name" required placeholder="输入电影名" autocomplete="off">
+              <button type="button" class="btn-search-tmdb" onclick="searchTmdbMovie()" title="从TMDB搜索">🔍</button>
+            </div>
+            <div id="tmdb-search-results" class="tmdb-search-results"></div>
           </div>
           <div class="form-group">
             <label>观看日期 *</label>
@@ -286,6 +290,34 @@
     // ========== 配置 ==========
     const SUPABASE_URL = 'https://zbghffgydxzufzfuozwq.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc';
+
+    // TMDB 配置
+    const TMDB_API_KEY = 'cd1951025c510fc9bf0a0523bfc31b6b';
+    const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w200';
+    const TMDB_IMAGE_BASE_LG = 'https://image.tmdb.org/t/p/w500';
+
+    // TMDB 类型 ID -> 我们的类型 ID 映射
+    const TMDB_GENRE_MAP = {
+      28: 'action',    // Action
+      12: 'action',    // Adventure
+      37: 'action',    // Western
+      35: 'comedy',    // Comedy
+      10749: 'romance', // Romance
+      27: 'horror',    // Horror
+      878: 'sci-fi',   // Science Fiction
+      14: 'sci-fi',    // Fantasy
+      18: 'drama',     // Drama
+      36: 'drama',     // History
+      10752: 'drama',  // War
+      10402: 'drama',  // Music
+      10770: 'drama',  // TV Movie
+      53: 'thriller',  // Thriller
+      80: 'thriller',  // Crime
+      9648: 'thriller', // Mystery
+      16: 'animation', // Animation
+      10751: 'animation', // Family
+      99: 'documentary' // Documentary
+    };
 
     const defaultGenres = [
       { id: 'action', name: '动作' },
@@ -683,6 +715,117 @@
       renderGenreOptions();
       renderFilterOptions();
     }
+
+    // ========== TMDB 搜索 ==========
+    let currentTmdbResults = [];
+    let selectedTmdbMovie = null;
+
+    async function searchTmdbMovie() {
+      const query = document.getElementById('movie-name').value.trim();
+      if (!query) {
+        alert('请输入电影名');
+        return;
+      }
+
+      const resultsContainer = document.getElementById('tmdb-search-results');
+      resultsContainer.innerHTML = '<div style="padding: 10px; text-align: center;">搜索中...</div>';
+      resultsContainer.classList.add('active');
+
+      try {
+        const response = await fetch(
+          `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=zh-CN`
+        );
+        const data = await response.json();
+
+        if (data.results && data.results.length > 0) {
+          currentTmdbResults = data.results.slice(0, 5);
+          displayTmdbResults(currentTmdbResults);
+        } else {
+          resultsContainer.innerHTML = '<div style="padding: 10px;">未找到相关电影</div>';
+        }
+      } catch (err) {
+        console.error('TMDB 搜索失败:', err);
+        resultsContainer.innerHTML = '<div style="padding: 10px;">搜索失败，请重试</div>';
+      }
+    }
+
+    function displayTmdbResults(results) {
+      const resultsContainer = document.getElementById('tmdb-search-results');
+      
+      if (results.length === 0) {
+        resultsContainer.innerHTML = '<div style="padding: 10px;">未找到相关电影</div>';
+        return;
+      }
+
+      resultsContainer.innerHTML = results.map((movie, index) => `
+        <div class="tmdb-search-item" onclick="selectTmdbMovie(${index})">
+          ${movie.poster_path 
+            ? `<img src="${TMDB_IMAGE_BASE}${movie.poster_path}" alt="${movie.title}">`
+            : `<div style="width: 45px; height: 67px; background: #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 20px;">🎬</div>`
+          }
+          <div class="tmdb-search-item-info">
+            <div class="tmdb-search-item-title">${movie.title}</div>
+            <div class="tmdb-search-item-year">${movie.release_date ? movie.release_date.split('-')[0] : '未知'}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function selectTmdbMovie(index) {
+      const movie = currentTmdbResults[index];
+      selectedTmdbMovie = movie;
+
+      // 自动填充表单
+      document.getElementById('movie-name').value = movie.title;
+      document.getElementById('duration').value = movie.runtime || '';
+
+      // 映射类型
+      if (movie.genre_ids) {
+        const matchedGenres = movie.genre_ids
+          .map(id => TMDB_GENRE_MAP[id])
+          .filter(Boolean);
+        
+        // 勾选匹配的类型
+        document.querySelectorAll('input[name="genre"]').forEach(cb => {
+          cb.checked = matchedGenres.includes(cb.value);
+        });
+      }
+
+      // 隐藏搜索结果
+      document.getElementById('tmdb-search-results').classList.remove('active');
+
+      // 如果有详情（ runtime 可能为 null），尝试获取完整信息
+      if (!movie.runtime || !movie.poster_path) {
+        fetchTmdbMovieDetails(movie.id);
+      }
+    }
+
+    async function fetchTmdbMovieDetails(tmdbId) {
+      try {
+        const response = await fetch(
+          `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=zh-CN`
+        );
+        const data = await response.json();
+
+        if (data.runtime) {
+          document.getElementById('duration').value = data.runtime;
+        }
+
+        // 更新选中的电影信息
+        selectedTmdbMovie = { ...selectedTmdbMovie, ...data };
+      } catch (err) {
+        console.error('获取 TMDB 详情失败:', err);
+      }
+    }
+
+    // 点击其他地方关闭搜索结果
+    document.addEventListener('click', (e) => {
+      const resultsContainer = document.getElementById('tmdb-search-results');
+      const searchWrapper = document.querySelector('.movie-search-wrapper');
+      if (searchWrapper && !searchWrapper.contains(e.target) && !resultsContainer.contains(e.target)) {
+        resultsContainer.classList.remove('active');
+      }
+    });
 
     // ========== 主题 ==========
     function setTheme(theme) {
@@ -1260,11 +1403,18 @@
 
     function renderMovieCard(m) {
       const genreHtml = m.genre ? '<span class="movie-badge">' + getGenreNames(m.genre) + '</span>' : '';
-      return '<div class="movie-card" data-id="' + m.id + '">' +
-        '<div class="movie-info">' +
+      
+      // 海报
+      const posterHtml = m.poster_path 
+        ? `<img class="movie-card-poster" src="${TMDB_IMAGE_BASE}${m.poster_path}" alt="${m.movie_name}">`
+        : `<div class="movie-card-poster" style="background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; align-items: center; justify-content: center; font-size: 30px;">🎬</div>`;
+      
+      return '<div class="movie-card movie-card-with-poster" data-id="' + m.id + '">' +
+        posterHtml +
+        '<div class="movie-card-info">' +
         '<div class="movie-title">' + m.movie_name + '</div>' +
-        '<div class="movie-meta">' + formatDate(m.watch_date) + ' · ' + (m.duration_minutes || '?') + '分钟' + (m.created_by ? ' · ' + m.created_by : '') + '</div></div>' +
-        genreHtml + '</div>';
+        '<div class="movie-meta">' + formatDate(m.watch_date) + ' · ' + (m.duration_minutes || '?') + '分钟' + (m.created_by ? ' · ' + m.created_by : '') + '</div>' +
+        genreHtml + '</div></div>';
     }
 
     function renderMovies() {
@@ -1289,19 +1439,103 @@
       document.querySelectorAll('.movie-card').forEach(card => {
         card.onclick = function() {
           const id = this.getAttribute('data-id');
-          handleMovieCardClick(id);
+          showMovieDetail(id);
         };
       });
     }
 
-    function handleMovieCardClick(id) {
+    function showMovieDetail(id) {
+      const movie = movies.find(m => m.id == id);
+      if (!movie) return;
+      
+      // 如果是管理员，点击可以编辑
       if (isAdmin) {
-        const movie = movies.find(m => m.id == id);
-        if (movie) showMovieModal(movie);
-      } else {
-        alert('点击电影卡片可编辑记录\n\n请先在设置中登录管理员账号\n默认密码：huiwan111');
-        showSettings();
+        if (confirm('是否编辑这条记录？\n\n点击确定进入编辑模式')) {
+          showMovieModal(movie);
+          return;
+        }
       }
+      
+      // 显示详情弹窗
+      let posterHtml = '';
+      if (movie.poster_path) {
+        posterHtml = `<img class="movie-detail-poster" src="${TMDB_IMAGE_BASE_LG}${movie.poster_path}" alt="${movie.movie_name}">`;
+      } else {
+        posterHtml = `<div class="no-poster-placeholder">🎬</div>`;
+      }
+      
+      const ratingHtml = movie.rating ? `
+        <div class="movie-detail-rating">
+          <span class="star">⭐</span>
+          <span>${movie.rating}/10</span>
+        </div>
+      ` : '';
+      
+      const directorHtml = movie.director ? `
+        <div class="movie-detail-section">
+          <div class="movie-detail-section-title">导演</div>
+          <div class="movie-detail-director">${movie.director}</div>
+        </div>
+      ` : '';
+      
+      const castHtml = movie.cast ? `
+        <div class="movie-detail-section">
+          <div class="movie-detail-section-title">主演</div>
+          <div class="movie-detail-cast">${movie.cast}</div>
+        </div>
+      ` : '';
+      
+      const detailHtml = `
+        <div id="movie-detail-modal" class="modal movie-detail-modal">
+          <div class="modal-content">
+            <span class="close" onclick="hideMovieDetail()">&times;</span>
+            <h2>${movie.movie_name}</h2>
+            <div class="movie-detail-header">
+              ${posterHtml}
+              <div class="movie-detail-info">
+                <div class="movie-detail-meta">
+                  观影日期：${formatDate(movie.watch_date)}<br>
+                  时长：${movie.duration_minutes || '?'}分钟<br>
+                  类型：${getGenreNames(movie.genre) || '未分类'}<br>
+                  记录人：${movie.created_by || 'TA'}
+                </div>
+                ${ratingHtml}
+                ${directorHtml}
+                ${castHtml}
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+              ${isAdmin ? `<button class="btn-primary" onclick="hideMovieDetail(); showMovieModal(movies.find(m => m.id == '${id}'));">✏️ 编辑</button>` : '<p style="color: var(--text-secondary); font-size: 14px;">登录后可编辑记录</p>'}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // 移除旧的弹窗（如果存在）
+      const oldModal = document.getElementById('movie-detail-modal');
+      if (oldModal) oldModal.remove();
+      
+      // 添加新弹窗
+      document.body.insertAdjacentHTML('beforeend', detailHtml);
+      document.getElementById('movie-detail-modal').classList.add('active');
+      
+      // 点击遮罩关闭
+      document.getElementById('movie-detail-modal').onclick = (e) => {
+        if (e.target.id === 'movie-detail-modal') hideMovieDetail();
+      };
+    }
+
+    function hideMovieDetail() {
+      const modal = document.getElementById('movie-detail-modal');
+      if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => modal.remove(), 300);
+      }
+    }
+
+    function handleMovieCardClick(id) {
+      // 这个函数现在被 showMovieDetail 替代，保留用于兼容
+      showMovieDetail(id);
     }
 
     function filterMovies() { renderMovies(); }
@@ -1502,12 +1736,49 @@
         genres.push(cb.value);
       });
       
+      // 从 TMDB 结果中获取附加信息
+      let posterPath = null;
+      let rating = null;
+      let director = '';
+      let cast = '';
+      let tmdbId = null;
+
+      if (selectedTmdbMovie) {
+        posterPath = selectedTmdbMovie.poster_path;
+        rating = selectedTmdbMovie.vote_average ? Math.round(selectedTmdbMovie.vote_average * 10) / 10 : null;
+        tmdbId = selectedTmdbMovie.id;
+        
+        // 获取导演和主演（需要再请求 credits）
+        try {
+          const creditsRes = await fetch(
+            `https://api.themoviedb.org/3/movie/${tmdbId}/credits?api_key=${TMDB_API_KEY}&language=zh-CN`
+          );
+          const credits = await creditsRes.json();
+          
+          // 导演
+          const directors = credits.crew?.filter(p => p.job === 'Director') || [];
+          director = directors.map(d => d.name).join(', ');
+          
+          // 主演（前3人）
+          const topCast = credits.cast?.slice(0, 3) || [];
+          cast = topCast.map(a => a.name).join(', ');
+        } catch (err) {
+          console.error('获取演职人员信息失败:', err);
+        }
+      }
+      
       const movieData = {
         movie_name: document.getElementById('movie-name').value,
         watch_date: document.getElementById('watch-date').value,
         duration_minutes: parseInt(document.getElementById('duration').value) || null,
         genre: genres.join(','),
-        created_by: document.getElementById('created-by').value || 'TA'
+        created_by: document.getElementById('created-by').value || 'TA',
+        // TMDB 附加信息
+        poster_path: posterPath,
+        rating: rating,
+        director: director,
+        cast: cast,
+        tmdb_id: tmdbId
       };
       
       const id = document.getElementById('movie-id').value;
