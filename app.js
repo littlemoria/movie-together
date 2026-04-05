@@ -198,21 +198,33 @@ function renderStats() {
     </div>
   `).join('') || '<p class="empty-state">暂无数据</p>';
 
-  // 月度分布
+  // 月度分布 - 滑动窗口：最近12个月
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  
+  // 生成最近12个月的key列表
+  const last12Months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(currentYear, currentMonth - 1 - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    last12Months.push(key);
+  }
+
   const monthlyCounts = {};
   movies.forEach(m => {
     const key = getMonthKey(m.watch_date);
     monthlyCounts[key] = (monthlyCounts[key] || 0) + 1;
   });
 
-  const sortedMonths = Object.keys(monthlyCounts).sort().slice(-6);
   const maxCount = Math.max(...Object.values(monthlyCounts), 1);
 
   const monthlyChart = document.getElementById('monthly-chart');
-  monthlyChart.innerHTML = sortedMonths.map(month => {
-    const count = monthlyCounts[month];
+  monthlyChart.innerHTML = last12Months.map(month => {
+    const count = monthlyCounts[month] || 0;
     const height = (count / maxCount) * 100;
-    return `<div class="month-bar" style="height: ${height}%" data-count="${count}"></div>`;
+    const monthLabel = month.split('-')[1] + '月';
+    return `<div class="month-bar" style="height: ${height}%" data-count="${count}" data-month="${monthLabel}"></div>`;
   }).join('');
 }
 

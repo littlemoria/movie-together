@@ -1578,33 +1578,33 @@
         return '<div class="genre-item"><span class="genre-dot" style="background:' + colors[i % colors.length] + '"></span><span>' + getGenreName(genre) + '</span><span class="genre-count">' + count + ' (' + percentage + '%)</span></div>';
       }).join('') || '<p class="empty-state">暂无数据</p>';
 
-      // 月度统计 - 显示当年1-12月
-      const currentYear = new Date().getFullYear();
-      const monthlyCounts = {};
-      // 初始化1-12月为0
-      for (let i = 1; i <= 12; i++) {
-        monthlyCounts[`${currentYear}-${String(i).padStart(2, '0')}`] = 0;
+      // 月度统计 - 滑动窗口：最近12个月
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      
+      // 生成最近12个月的key列表
+      const last12Months = [];
+      const monthLabels = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(currentYear, currentMonth - 1 - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        last12Months.push(key);
+        monthLabels.push((d.getMonth() + 1) + '月');
       }
+      
+      const monthlyCounts = {};
       // 统计有数据的月份
       movies.forEach(m => {
-        const date = new Date(m.watch_date);
-        if (date.getFullYear() === currentYear) {
-          const k = getMonthKey(m.watch_date);
-          monthlyCounts[k] = (monthlyCounts[k] || 0) + 1;
-        }
+        const k = getMonthKey(m.watch_date);
+        monthlyCounts[k] = (monthlyCounts[k] || 0) + 1;
       });
-      // 按1-12月顺序
-      const months = [];
-      for (let i = 1; i <= 12; i++) {
-        const key = `${currentYear}-${String(i).padStart(2, '0')}`;
-        months.push({ key, count: monthlyCounts[key] });
-      }
+      
       const maxCount = Math.max(...Object.values(monthlyCounts), 1);
-      const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-      document.getElementById('monthly-chart').innerHTML = months.map((m, i) => {
-        const c = m.count;
+      document.getElementById('monthly-chart').innerHTML = last12Months.map((month, i) => {
+        const c = monthlyCounts[month] || 0;
         const h = (c / maxCount) * 100;
-        return '<div class="month-bar" style="height:' + h + '%" data-count="' + c + '" data-month="' + monthNames[i] + '"></div>';
+        return '<div class="month-bar" style="height:' + h + '%" data-count="' + c + '" data-month="' + monthLabels[i] + '"></div>';
       }).join('');
     }
 
