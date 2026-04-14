@@ -4,9 +4,6 @@
  */
 
 const API = {
-  /**
-   * 初始化 Supabase 客户端
-   */
   initSupabase() {
     if (Config.SUPABASE_URL === 'YOUR_SUPABASE_URL') {
       console.log('请配置 Supabase');
@@ -21,10 +18,16 @@ const API = {
     return window.supabase.createClient(Config.SUPABASE_URL, Config.SUPABASE_KEY);
   },
 
-  /**
-   * 从数据库获取所有电影
-   */
+  async fetchAllMovies() {
+    return this.fetchMovies();
+  },
+
   async fetchMovies() {
+    if (!navigator.onLine && typeof Cache !== 'undefined') {
+      console.log('[API] Offline, loading from cache');
+      return await Cache.getMovies();
+    }
+    
     try {
       const response = await fetch(
         `${Config.SUPABASE_URL}/rest/v1/movies?select=*&order=watch_date.desc`,
@@ -40,27 +43,42 @@ const API = {
         throw new Error(`HTTP ${response.status}`);
       }
       
-      return await response.json();
+      const movies = await response.json();
+      
+      if (typeof Cache !== 'undefined' && movies && movies.length > 0) {
+        await Cache.saveMovies(movies);
+      }
+      
+      return movies;
     } catch (err) {
       console.error('获取电影列表失败:', err);
+      
+      if (typeof Cache !== 'undefined') {
+        return await Cache.getMovies();
+      }
+      
       return [];
     }
   },
 
-  /**
-   * 保存电影到数据库
-   */
   async saveMovie(movieData, id = null) {
+    if (!navigator.onLine && typeof Sync !== 'undefined') {
+      console.log('[API] Offline, saving to sync queue');
+      if (id) {
+        return Sync.updateMovieOffline({ ...movieData, id });
+      } else {
+        return Sync.addMovieOffline(movieData);
+      }
+    }
+    
     try {
       let url, method, body;
       
       if (id) {
-        // 更新
         url = `${Config.SUPABASE_URL}/rest/v1/movies?id=eq.${id}`;
         method = 'PATCH';
         body = JSON.stringify(movieData);
       } else {
-        // 新增
         url = `${Config.SUPABASE_URL}/rest/v1/movies`;
         method = 'POST';
         body = JSON.stringify(movieData);
@@ -81,23 +99,29 @@ const API = {
         throw new Error(`HTTP ${response.status}`);
       }
       
-      // 更新本地数据
       if (id) {
         const idx = appState.movies.findIndex(m => m.id === id);
         if (idx >= 0) {
           appState.movies[idx] = { ...appState.movies[idx], ...movieData };
         }
+        
+        if (typeof Cache !== 'undefined') {
+          await Cache.saveMovies([appState.movies[idx]]);
+        }
       } else {
         const newMovie = await response.json();
         if (newMovie && newMovie.length > 0) {
           appState.movies.unshift(newMovie[0]);
+          
+          if (typeof Cache !== 'undefined') {
+            await Cache.saveMovies([newMovie[0]]);
+          }
         }
       }
       
       return true;
     } catch (err) {
       console.error('保存失败:', err);
-      // 回退到本地存储
       if (id) {
         const idx = appState.movies.findIndex(m => m.id === id);
         if (idx >= 0) appState.movies[idx] = { ...appState.movies[idx], ...movieData };
@@ -110,10 +134,12 @@ const API = {
     }
   },
 
-  /**
-   * 从数据库删除电影
-   */
   async deleteMovie(id) {
+    if (!navigator.onLine && typeof Sync !== 'undefined') {
+      console.log('[API] Offline, adding to sync queue');
+      return Sync.deleteMovieOffline(id);
+    }
+    
     try {
       const response = await fetch(
         `${Config.SUPABASE_URL}/rest/v1/movies?id=eq.${id}`,
@@ -131,10 +157,14 @@ const API = {
       }
       
       appState.movies = appState.movies.filter(m => m.id !== id);
+      
+      if (typeof Cache !== 'undefined') {
+        await Cache.deleteMovie(id);
+      }
+      
       return true;
     } catch (err) {
       console.error('删除失败:', err);
-      // 回退到本地存储
       appState.movies = appState.movies.filter(m => m.id !== id);
       localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(appState.movies));
       return false;

@@ -220,20 +220,21 @@ const Utils = {
    * @returns {string} HTML 字符串
    */
   getPosterHtml(movie) {
+    if (typeof LazyLoad !== 'undefined') {
+      return LazyLoad.getPosterHtml(movie, false);
+    }
     if (movie.poster_path) {
       return `<img class="movie-card-poster" src="${Config.TMDB_IMAGE_BASE}${movie.poster_path}" alt="${movie.movie_name}" loading="lazy">`;
     }
     return `<div class="movie-card-poster" style="background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; align-items: center; justify-content: center; font-size: 30px;">🎬</div>`;
   },
 
-  /**
-   * 生成大海报 HTML（用于详情页）
-   * @param {Object} movie - 电影对象
-   * @returns {string} HTML 字符串
-   */
   getLargePosterHtml(movie) {
+    if (typeof LazyLoad !== 'undefined') {
+      return LazyLoad.getPosterHtml(movie, true);
+    }
     if (movie.poster_path) {
-      return `<img class="movie-detail-poster" src="${Config.TMDB_IMAGE_BASE_LG}${movie.poster_path}" alt="${movie.movie_name}">`;
+      return `<img class="movie-detail-poster" src="${Config.TMDB_IMAGE_BASE_LG}${movie.poster_path}" alt="${movie.movie_name}" loading="lazy">`;
     }
     return `<div class="no-poster-placeholder">🎬</div>`;
   },

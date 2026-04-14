@@ -1,20 +1,30 @@
 /**
  * CineMemo 配置文件
  * 包含所有常量、配置项和初始数据
+ * 
+ * 安全说明：
+ * - 敏感配置应放在 env.js 中
+ * - 此文件包含非敏感的默认配置
  */
 
+// 从环境配置读取（env.js）
+const envConfig = window.ENV || {};
+
 const Config = {
-  // Supabase 配置
-  SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
-  SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc',
+  // Supabase 配置（从 env.js 读取）
+  SUPABASE_URL: envConfig.SUPABASE_URL || 'YOUR_SUPABASE_URL',
+  SUPABASE_KEY: envConfig.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY',
 
   // TMDB API 配置
-  TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
+  TMDB_API_KEY: envConfig.TMDB_API_KEY || 'YOUR_TMDB_API_KEY',
   TMDB_IMAGE_BASE: 'https://image.tmdb.org/t/p/w200',
   TMDB_IMAGE_BASE_LG: 'https://image.tmdb.org/t/p/w500',
 
-  // 默认管理员密码
-  DEFAULT_ADMIN_PASSWORD: 'huiwan111',
+  // 管理员密码（从 env.js 读取）
+  DEFAULT_ADMIN_PASSWORD: envConfig.ADMIN_PASSWORD || 'huiwan111',
+  
+  // 调试模式
+  DEBUG: envConfig.DEBUG || false,
 
   // 音乐曲目列表
   MUSIC_TRACKS: [

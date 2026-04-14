@@ -11,9 +11,17 @@
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
+  <!-- 环境配置（必须在其他 JS 之前加载） -->
+  <script src="env.js"></script>
+  
   <!-- 模块化 JS -->
   <script src="js/config.js"></script>
+  <script src="js/lazyload.js"></script>
   <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/offline.js"></script>
+  <script src="js/cache.js"></script>
+  <script src="js/sync.js"></script>
   <script src="js/api.js"></script>
   <script src="js/components.js"></script>
   <script src="js/app.js"></script>
@@ -317,5 +325,34 @@
       <span>统计</span>
     </button>
   </nav>
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered:', registration.scope);
+            
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  if (confirm('发现新版本，是否立即更新？')) {
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                }
+              });
+            });
+          })
+          .catch((error) => {
+            console.log('SW registration failed:', error);
+          });
+        
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
+      });
+    }
+  </script>
 </body>
 </html>

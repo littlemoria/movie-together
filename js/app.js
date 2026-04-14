@@ -8,11 +8,25 @@ const App = {
    * 初始化应用
    */
   async init() {
-    // 加载配置
     Utils.loadConfig();
     Utils.loadCustomGenres();
     
-    // 应用设置
+    if (typeof Auth !== 'undefined') {
+      Auth.init();
+    }
+    
+    if (typeof LazyLoad !== 'undefined') {
+      LazyLoad.init();
+    }
+    
+    if (typeof Offline !== 'undefined') {
+      Offline.init();
+    }
+    
+    if (typeof Sync !== 'undefined') {
+      await Sync.init();
+    }
+    
     this.applyTheme(config.theme);
     Components.applyOpacitySettings();
     
@@ -212,11 +226,17 @@ const App = {
    * 加载电影数据
    */
   async loadMovies() {
+    if (typeof Sync !== 'undefined') {
+      const cached = await Sync.loadFromCache();
+      if (cached && cached.length > 0) {
+        Components.renderHome();
+      }
+    }
+    
     try {
       appState.movies = await API.fetchMovies();
     } catch (err) {
       console.error('加载数据失败:', err);
-      // 尝试从本地存储加载
       const cached = localStorage.getItem(Config.STORAGE_KEYS.MOVIES);
       if (cached) {
         try {

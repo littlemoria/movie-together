@@ -11,21 +11,28 @@ const Components = {
     const sorted = [...appState.movies].sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
     const totalMinutes = Utils.getTotalMinutes(appState.movies);
     
-    // 更新统计数据
     document.getElementById('total-movies').textContent = appState.movies.length;
     document.getElementById('total-hours').textContent = Math.floor(totalMinutes / 60);
     document.getElementById('total-minutes').textContent = totalMinutes % 60;
     
-    // 更新页面标题
-    document.getElementById('page-title').textContent = `第 ${appState.movies.length} 次一起看`;
+    document.getElementById('page-title').textContent = 'CineMemo';
     
-    // 渲染最近观看
     const recentDiv = document.getElementById('recent-movies');
     if (sorted.length === 0) {
       recentDiv.innerHTML = '<p class="empty-state">还没有记录，开始你们的第一次吧～</p>';
     } else {
       recentDiv.innerHTML = sorted.slice(0, 3).map(m => this.renderMovieCard(m)).join('');
       this.bindMovieCardClicks();
+      this.initLazyLoad();
+    }
+  },
+
+  initLazyLoad() {
+    if (typeof LazyLoad !== 'undefined') {
+      // 延迟执行，确保 DOM 完全渲染
+      setTimeout(() => {
+        LazyLoad.refresh();
+      }, 100);
     }
   },
 
@@ -119,7 +126,8 @@ const Components = {
     document.body.insertAdjacentHTML('beforeend', detailHtml);
     document.getElementById('movie-detail-modal').classList.add('active');
     
-    // 点击遮罩关闭
+    this.initLazyLoad();
+    
     document.getElementById('movie-detail-modal').onclick = (e) => {
       if (e.target.id === 'movie-detail-modal') this.hideMovieDetail();
     };
@@ -158,6 +166,7 @@ const Components = {
     } else {
       container.innerHTML = filtered.map(m => this.renderMovieCard(m)).join('');
       this.bindMovieCardClicks();
+      this.initLazyLoad();
     }
   },
 
