@@ -13,50 +13,30 @@
   
   <!-- 环境配置（必须在其他 JS 之前加载） -->
   <script>
-    // 尝试加载 env.js，如果失败则使用默认配置
-    (function() {
-      const script = document.createElement('script');
-      script.src = 'env.js';
-      script.onload = function() {
-        console.log('env.js loaded successfully');
-        loadOtherScripts();
-      };
-      script.onerror = function() {
-        console.log('env.js not found, using default config');
-        window.ENV = {
-          SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
-          SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODQ0NTQsImV4cCI6MjA5MTc2MDQ1NH0.39T8JcA1tWfG3I7d9G7bZ9g8h7f6e5d4c3b2a1',
-          TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
-          ADMIN_PASSWORD: 'huiwan111',
-          DEBUG: false
-        };
-        loadOtherScripts();
-      };
-      document.head.appendChild(script);
-    })();
-    
-    function loadOtherScripts() {
-      // 模块化 JS
-      const scripts = [
-        'js/config.js',
-        'js/lazyload.js',
-        'js/utils.js',
-        'js/auth.js',
-        'js/offline.js',
-        'js/cache.js',
-        'js/sync.js',
-        'js/api.js',
-        'js/components.js',
-        'js/app.js'
-      ];
-      
-      scripts.forEach(src => {
-        const script = document.createElement('script');
-        script.src = src;
-        document.head.appendChild(script);
-      });
-    }
+    // 先设置默认的 window.ENV
+    window.ENV = {
+      SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODQ0NTQsImV4cCI6MjA5MTc2MDQ1NH0.39T8JcA1tWfG3I7d9G7bZ9g8h7f6e5d4c3b2a1',
+      TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
+      ADMIN_PASSWORD: 'huiwan111',
+      DEBUG: false
+    };
   </script>
+  
+  <!-- 尝试加载 env.js 以覆盖默认配置 -->
+  <script src="env.js" onerror="console.log('env.js not found, using default config')"></script>
+  
+  <!-- 模块化 JS -->
+  <script src="js/config.js"></script>
+  <script src="js/lazyload.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/offline.js"></script>
+  <script src="js/cache.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/app.js"></script>
 </head>
 <body>
   <!-- 背景遮罩 -->
