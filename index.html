@@ -12,7 +12,27 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <!-- 环境配置（必须在其他 JS 之前加载） -->
-  <script src="env.js" onerror="console.log('env.js not found, using default config'); window.ENV = { SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co', SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODQ0NTQsImV4cCI6MjA5MTc2MDQ1NH0.39T8JcA1tWfG3I7d9G7bZ9g8h7f6e5d4c3b2a1" }; "></script>
+  <script>
+    // 尝试加载 env.js，如果失败则使用默认配置
+    (function() {
+      const script = document.createElement('script');
+      script.src = 'env.js';
+      script.onload = function() {
+        console.log('env.js loaded successfully');
+      };
+      script.onerror = function() {
+        console.log('env.js not found, using default config');
+        window.ENV = {
+          SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
+          SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODQ0NTQsImV4cCI6MjA5MTc2MDQ1NH0.39T8JcA1tWfG3I7d9G7bZ9g8h7f6e5d4c3b2a1',
+          TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
+          ADMIN_PASSWORD: 'huiwan111',
+          DEBUG: false
+        };
+      };
+      document.head.appendChild(script);
+    })();
+  </script>
   
   <!-- 模块化 JS -->
   <script src="js/config.js"></script>

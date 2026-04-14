@@ -8,15 +8,25 @@
  */
 
 // 从环境配置读取（env.js）
-const envConfig = window.ENV || {};
+const getEnvConfig = () => {
+  return window.ENV || {
+    SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODQ0NTQsImV4cCI6MjA5MTc2MDQ1NH0.39T8JcA1tWfG3I7d9G7bZ9g8h7f6e5d4c3b2a1',
+    TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
+    ADMIN_PASSWORD: 'huiwan111',
+    DEBUG: false
+  };
+};
+
+const envConfig = getEnvConfig();
 
 const Config = {
   // Supabase 配置（从 env.js 读取）
-  SUPABASE_URL: envConfig.SUPABASE_URL || 'YOUR_SUPABASE_URL',
-  SUPABASE_KEY: envConfig.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY',
+  SUPABASE_URL: envConfig.SUPABASE_URL,
+  SUPABASE_KEY: envConfig.SUPABASE_ANON_KEY,
 
   // TMDB API 配置
-  TMDB_API_KEY: envConfig.TMDB_API_KEY || 'YOUR_TMDB_API_KEY',
+  TMDB_API_KEY: envConfig.TMDB_API_KEY,
   TMDB_IMAGE_BASE: 'https://image.tmdb.org/t/p/w200',
   TMDB_IMAGE_BASE_LG: 'https://image.tmdb.org/t/p/w500',
 
