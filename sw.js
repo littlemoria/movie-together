@@ -3,18 +3,18 @@ const STATIC_CACHE = 'cinememo-static-v1';
 const DYNAMIC_CACHE = 'cinememo-dynamic-v1';
 
 const STATIC_ASSETS = [
-  '/index.html',
-  '/style.css',
-  '/js/config.js',
-  '/js/lazyload.js',
-  '/js/utils.js',
-  '/js/auth.js',
-  '/js/offline.js',
-  '/js/cache.js',
-  '/js/sync.js',
-  '/js/api.js',
-  '/js/components.js',
-  '/js/app.js'
+  'index.html',
+  'style.css',
+  'js/config.js',
+  'js/lazyload.js',
+  'js/utils.js',
+  'js/auth.js',
+  'js/offline.js',
+  'js/cache.js',
+  'js/sync.js',
+  'js/api.js',
+  'js/components.js',
+  'js/app.js'
 ];
 
 const EXTERNAL_ASSETS = [
@@ -124,7 +124,8 @@ function isStaticAsset(url) {
     url.pathname.endsWith('.js') || 
     url.pathname.endsWith('.css') || 
     url.pathname.endsWith('.html') ||
-    url.pathname === '/'
+    url.pathname === '/' ||
+    url.pathname.endsWith('/')
   );
 }
 
