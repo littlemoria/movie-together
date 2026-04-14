@@ -11,7 +11,7 @@
 const getEnvConfig = () => {
   return window.ENV || {
     SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODQ0NTQsImV4cCI6MjA5MTc2MDQ1NH0.39T8JcA1tWfG3I7d9G7bZ9g8h7f6e5d4c3b2a1',
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc',
     TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
     ADMIN_PASSWORD: 'huiwan111',
     DEBUG: false
