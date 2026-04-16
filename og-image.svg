@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6C5CE7"/>
+      <stop offset="50%" style="stop-color:#A29BFE"/>
+      <stop offset="100%" style="stop-color:#6C5CE7"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  
+  <!-- Decorative Elements -->
+  <circle cx="100" cy="100" r="150" fill="#FFFFFF" opacity="0.05"/>
+  <circle cx="1100" cy="530" r="200" fill="#FFFFFF" opacity="0.05"/>
+  
+  <!-- Film Reel -->
+  <circle cx="200" cy="315" r="120" fill="#FFFFFF" opacity="0.1"/>
+  <circle cx="200" cy="315" r="40" fill="#FFFFFF" opacity="0.2"/>
+  <circle cx="200" cy="255" r="12" fill="#FFFFFF" opacity="0.1"/>
+  <circle cx="200" cy="375" r="12" fill="#FFFFFF" opacity="0.1"/>
+  <circle cx="140" cy="315" r="12" fill="#FFFFFF" opacity="0.1"/>
+  <circle cx="260" cy="315" r="12" fill="#FFFFFF" opacity="0.1"/>
+  
+  <!-- Title -->
+  <text x="450" y="280" font-family="'Playfair Display', serif" font-size="72" font-weight="600" fill="#FFFFFF">
+    CineMemo
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="450" y="350" font-family="'Noto Sans SC', sans-serif" font-size="28" fill="#FFFFFF" opacity="0.9">
+    记录我们的观影时光
+  </text>
+  
+  <!-- Decorative Line -->
+  <rect x="450" y="380" width="300" height="3" rx="1.5" fill="#FFFFFF" opacity="0.5"/>
+  
+  <!-- Tagline -->
+  <text x="600" y="430" font-family="'Noto Sans SC', sans-serif" font-size="20" fill="#FFFFFF" opacity="0.7" text-anchor="middle">
+    Great films fade, but the scenes we share endure.
+  </text>
+  
+  <!-- Movie Icons -->
+  <g opacity="0.3">
+    <!-- Movie 1 -->
+    <rect x="950" y="150" width="60" height="90" rx="4" fill="#FFFFFF" transform="rotate(-10 980 195)"/>
+    <!-- Movie 2 -->
+    <rect x="1000" y="200" width="60" height="90" rx="4" fill="#FFFFFF" transform="rotate(5 1030 245)"/>
+    <!-- Movie 3 -->
+    <rect x="1050" y="170" width="60" height="90" rx="4" fill="#FFFFFF" transform="rotate(-5 1080 215)"/>
+  </g>
+  
+  <!-- Stars -->
+  <g fill="#FFFFFF" opacity="0.4">
+    <polygon points="100,580 105,595 120,595 108,605 113,620 100,610 87,620 92,605 80,595 95,595" />
+    <polygon points="150,590 155,605 170,605 158,615 163,630 150,620 137,630 142,615 130,605 145,605" />
+  </g>
+</svg>
