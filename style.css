@@ -1693,3 +1693,570 @@ body:has(.offline-banner.active) .header {
     max-width: none;
   }
 }
+
+/* ============================================
+   移动端适配优化 - 平板设备 (768px - 1024px)
+   ============================================ */
+@media (max-width: 1024px) and (min-width: 769px) {
+  /* 头部优化 */
+  .header {
+    padding: 16px;
+  }
+  
+  .header h1 {
+    font-size: 28px;
+  }
+  
+  .header .slogan {
+    font-size: 14px;
+  }
+  
+  /* 统计数字 */
+  .count-number {
+    font-size: 64px;
+  }
+  
+  /* 电影卡片 */
+  .movie-list {
+    gap: 10px;
+  }
+  
+  .movie-card {
+    padding: 14px;
+  }
+  
+  .movie-title {
+    font-size: 15px;
+  }
+  
+  /* 统计页面 */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* 模态框 */
+  .modal-content {
+    max-width: 90%;
+    padding: 20px;
+  }
+}
+
+/* ============================================
+   移动端适配优化 - 手机设备 (小于 768px)
+   ============================================ */
+@media (max-width: 768px) {
+  /* 头部优化 */
+  .header {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+  }
+  
+  .header-title {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .header h1 {
+    font-size: 22px;
+  }
+  
+  .header .slogan {
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  
+  .header .subtitle {
+    font-size: 12px;
+    display: none;
+  }
+  
+  .header-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+  
+  /* 统计数字区域 */
+  .count-section {
+    padding: 20px 16px;
+  }
+  
+  .count-number {
+    font-size: 48px;
+  }
+  
+  .count-label {
+    font-size: 13px;
+  }
+  
+  .stats-row {
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  
+  /* 电影卡片列表 */
+  .movie-list {
+    padding: 0 12px;
+    gap: 10px;
+  }
+  
+  .movie-card {
+    padding: 12px;
+    border-radius: 8px;
+  }
+  
+  .movie-card-poster {
+    width: 60px;
+    height: 90px;
+    flex-shrink: 0;
+  }
+  
+  .movie-title {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  .movie-meta {
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  
+  .movie-badge {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+  
+  /* 导航标签 */
+  .nav-tabs {
+    padding: 0 12px;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .nav-tab {
+    padding: 10px 16px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  
+  /* 模态框 */
+  .modal-content {
+    max-width: 95%;
+    max-height: 90vh;
+    padding: 16px;
+    border-radius: 12px;
+    overflow-y: auto;
+  }
+  
+  .modal-content h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+  
+  .form-group {
+    margin-bottom: 14px;
+  }
+  
+  .form-group label {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: 6px;
+  }
+  
+  /* 按钮优化 */
+  .btn-primary {
+    padding: 14px;
+    font-size: 15px;
+  }
+  
+  .btn-secondary {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  /* 设置面板 */
+  .settings-content {
+    padding: 16px;
+  }
+  
+  /* 统计页面 */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 0 12px;
+  }
+  
+  .stat-card {
+    padding: 16px;
+  }
+  
+  .stat-card h3 {
+    font-size: 13px;
+  }
+  
+  .stat-card .big-number {
+    font-size: 28px;
+  }
+  
+  /* 图表 */
+  .chart-section {
+    padding: 16px 12px;
+  }
+  
+  .chart-section h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .monthly-chart {
+    height: 120px;
+  }
+  
+  /* 音乐面板 */
+  .music-panel {
+    width: 95%;
+    max-height: 60vh;
+    border-radius: 12px 12px 0 0;
+    bottom: 0;
+    top: auto;
+  }
+  
+  .music-panel-content {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+  
+  /* 成就页面 */
+  .achievements-grid {
+    padding: 0 12px;
+    gap: 12px;
+  }
+  
+  .achievement-card {
+    padding: 16px;
+  }
+  
+  /* 页面头部 */
+  .page-header {
+    padding: 0 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .page-header h2 {
+    font-size: 18px;
+    width: 100%;
+  }
+  
+  /* 筛选器 */
+  .filter-bar {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .filter-bar select,
+  .filter-bar input {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  
+  /* 空状态 */
+  .empty-state {
+    padding: 30px 16px;
+    font-size: 13px;
+  }
+  
+  /* 导出导入按钮 */
+  .btn-export,
+  .btn-import {
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+}
+
+/* ============================================
+   移动端适配优化 - 小屏手机 (小于 480px)
+   ============================================ */
+@media (max-width: 480px) {
+  /* 头部 */
+  .header {
+    padding: 10px 12px;
+  }
+  
+  .header h1 {
+    font-size: 18px;
+  }
+  
+  .header .slogan {
+    font-size: 10px;
+  }
+  
+  .header-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  /* 统计数字 */
+  .count-section {
+    padding: 16px 12px;
+  }
+  
+  .count-number {
+    font-size: 40px;
+  }
+  
+  .count-label {
+    font-size: 12px;
+  }
+  
+  .count-row {
+    gap: 12px;
+  }
+  
+  /* 电影卡片 */
+  .movie-list {
+    padding: 0 8px;
+    gap: 8px;
+  }
+  
+  .movie-card {
+    padding: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .movie-card-poster {
+    width: 50px;
+    height: 75px;
+  }
+  
+  .movie-info {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .movie-title {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .movie-meta {
+    font-size: 11px;
+  }
+  
+  .movie-badge {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+  
+  .movie-card:hover {
+    transform: none;
+  }
+  
+  /* 导航 */
+  .nav-tabs {
+    padding: 0 8px;
+    gap: 6px;
+  }
+  
+  .nav-tab {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  /* 模态框 */
+  .modal-content {
+    padding: 12px;
+    max-height: 85vh;
+  }
+  
+  .modal-content h2 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .form-group {
+    margin-bottom: 12px;
+  }
+  
+  .form-group label {
+    font-size: 13px;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  
+  /* 按钮 */
+  .btn-primary {
+    padding: 12px;
+    font-size: 14px;
+  }
+  
+  .btn-secondary {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .form-actions button {
+    width: 100%;
+  }
+  
+  /* 统计 */
+  .stats-grid {
+    padding: 0 8px;
+    gap: 10px;
+  }
+  
+  .stat-card {
+    padding: 12px;
+  }
+  
+  .stat-card .big-number {
+    font-size: 24px;
+  }
+  
+  /* 图表 */
+  .chart-section {
+    padding: 12px 8px;
+  }
+  
+  .monthly-chart {
+    height: 100px;
+  }
+  
+  /* 音乐面板 */
+  .music-panel {
+    width: 100%;
+  }
+  
+  /* 成就 */
+  .achievements-grid {
+    padding: 0 8px;
+    gap: 10px;
+  }
+  
+  /* Toast 提示 */
+  #toast-container {
+    top: 10px;
+    right: 8px;
+    left: 8px;
+  }
+  
+  .toast {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  
+  /* 页面头部 */
+  .page-header {
+    padding: 0 8px;
+    gap: 8px;
+  }
+  
+  .page-header h2 {
+    font-size: 16px;
+  }
+  
+  /* 筛选器 */
+  .filter-bar {
+    padding: 10px 8px;
+    flex-wrap: wrap;
+  }
+  
+  /* 空状态 */
+  .empty-state {
+    padding: 24px 12px;
+  }
+}
+
+/* ============================================
+   触摸交互优化
+   ============================================ */
+
+/* 触摸反馈 */
+@media (hover: none) and (pointer: coarse) {
+  /* 移除悬停效果的变换 */
+  .movie-card:hover,
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  .nav-tab:hover {
+    transform: none;
+  }
+  
+  /* 添加触摸反馈 */
+  .movie-card:active,
+  .btn-primary:active,
+  .btn-secondary:active,
+  .nav-tab:active,
+  .header-btn:active,
+  .achievement-card:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+  
+  /* 触摸友好的滚动 */
+  .movie-list,
+  .music-panel-content,
+  .modal-content,
+  .achievements-grid {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* 禁用文本选择（可选，根据需求） */
+  .movie-card,
+  .nav-tab {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* ============================================
+   安全区域适配（iPhone刘海屏等）
+   ============================================ */
+@supports (padding: max(0px)) {
+  .header {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  
+  .modal-content {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  
+  .music-panel {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+/* ============================================
+   减少动画（无障碍）
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
