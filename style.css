@@ -1530,3 +1530,166 @@ body {
 body:has(.offline-banner.active) .header {
   margin-top: 44px;
 }
+
+/* ============================================
+   Toast 提示系统样式
+   ============================================ */
+
+/* Toast 容器 */
+#toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* Toast 基本样式 */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 300px;
+  max-width: 450px;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+}
+
+/* Toast 显示动画 */
+.toast.toast-show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Toast 消失动画 */
+.toast.toast-hide {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+/* Toast 图标 */
+.toast-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* Toast 消息 */
+.toast-message {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+/* Toast 关闭按钮 */
+.toast-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+/* Toast 类型样式 */
+
+/* 成功 */
+.toast-success {
+  border-left: 4px solid var(--success);
+  background: linear-gradient(135deg, white 0%, #f0fff4 100%);
+}
+
+.toast-success .toast-icon {
+  color: var(--success);
+}
+
+/* 错误 */
+.toast-error {
+  border-left: 4px solid var(--danger);
+  background: linear-gradient(135deg, white 0%, #fff5f5 100%);
+}
+
+.toast-error .toast-icon {
+  color: var(--danger);
+}
+
+/* 警告 */
+.toast-warning {
+  border-left: 4px solid #F39C12;
+  background: linear-gradient(135deg, white 0%, #fffcf0 100%);
+}
+
+.toast-warning .toast-icon {
+  color: #F39C12;
+}
+
+/* 信息 */
+.toast-info {
+  border-left: 4px solid var(--accent);
+  background: linear-gradient(135deg, white 0%, #f8f7ff 100%);
+}
+
+.toast-info .toast-icon {
+  color: var(--accent);
+}
+
+/* 暗色主题适配 */
+[data-theme="dark"] .toast {
+  background: #1e1e2e;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .toast-message {
+  color: #E8E8E8;
+}
+
+[data-theme="dark"] .toast-close {
+  color: #A0A0A0;
+}
+
+[data-theme="dark"] .toast-success {
+  background: linear-gradient(135deg, #1e1e2e 0%, #1a3329 100%);
+}
+
+[data-theme="dark"] .toast-error {
+  background: linear-gradient(135deg, #1e1e2e 0%, #3d1f1f 100%);
+}
+
+[data-theme="dark"] .toast-warning {
+  background: linear-gradient(135deg, #1e1e2e 0%, #3d3520 100%);
+}
+
+[data-theme="dark"] .toast-info {
+  background: linear-gradient(135deg, #1e1e2e 0%, #2d2a4a 100%);
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  #toast-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+  }
+  
+  .toast {
+    min-width: auto;
+    max-width: none;
+  }
+}

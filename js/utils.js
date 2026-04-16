@@ -181,25 +181,25 @@ const Utils = {
    * @param {string} type - 消息类型 (success, error, info)
    */
   showToast(message, type = 'info') {
-    // 移除旧提示
-    const oldToast = document.querySelector('.toast');
-    if (oldToast) oldToast.remove();
-    
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    // 触发动画
-    requestAnimationFrame(() => {
-      toast.classList.add('active');
-    });
-    
-    // 自动移除
-    setTimeout(() => {
-      toast.classList.remove('active');
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    // 调用统一的 Toast 系统
+    if (typeof Toast !== 'undefined') {
+      Toast.show(message, type);
+    } else {
+      // 回退：使用简单的实现
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      requestAnimationFrame(() => {
+        toast.classList.add('active');
+      });
+      
+      setTimeout(() => {
+        toast.classList.remove('active');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
   },
 
   /**

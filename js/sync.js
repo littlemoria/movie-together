@@ -55,11 +55,13 @@ const Sync = {
     console.log('[Sync] Starting sync...');
     
     try {
+      // 处理离线队列
       await this.processSyncQueue();
       
       const lastSync = await Cache.getLastSyncTime();
       console.log('[Sync] Last sync:', lastSync);
       
+      // 获取云端数据
       const movies = await API.fetchAllMovies();
       
       if (movies && movies.length > 0) {
@@ -70,11 +72,25 @@ const Sync = {
           Components.renderHome();
           Components.renderMovies();
         }
+        
+        // 显示同步成功提示
+        if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+          Utils.showToast(`同步成功！共 ${movies.length} 部电影`, 'success');
+        }
+      } else {
+        // 显示同步完成但无数据提示
+        if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+          Utils.showToast('同步完成，暂无新数据', 'info');
+        }
       }
       
       console.log('[Sync] Sync completed');
     } catch (error) {
       console.error('[Sync] Sync failed:', error);
+      // 显示同步失败提示
+      if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+        Utils.showToast('同步失败，请检查网络连接', 'error');
+      }
     } finally {
       this.isSyncing = false;
     }
@@ -92,6 +108,11 @@ const Sync = {
     
     console.log('[Sync] Processing', queue.length, 'queued items');
     
+    // 显示离线操作正在同步
+    if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+      Utils.showToast(`正在同步 ${queue.length} 条离线操作...`, 'info');
+    }
+    
     for (const item of queue) {
       try {
         await this.processQueueItem(item);
@@ -100,6 +121,11 @@ const Sync = {
       } catch (error) {
         console.error('[Sync] Failed to process item:', item, error);
       }
+    }
+    
+    // 显示离线操作同步完成
+    if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+      Utils.showToast(`已同步 ${queue.length} 条离线操作`, 'success');
     }
   },
   
