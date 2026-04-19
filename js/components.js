@@ -378,11 +378,17 @@ const Components = {
       return;
     }
     
+    const currentYear = select.value;
+    
     const years = [...new Set(appState.movies.map(m => new Date(m.watch_date).getFullYear()))];
     years.sort((a, b) => b - a);
     
     select.innerHTML = '<option value="">全部年份</option>' + 
       years.map(y => `<option value="${y}">${y}年</option>`).join('');
+    
+    if (currentYear && years.includes(parseInt(currentYear))) {
+      select.value = currentYear;
+    }
   },
 
   /**
