@@ -367,6 +367,27 @@ body {
   margin-bottom: 0;
 }
 
+.btn-clear-filter {
+  background: var(--text-light);
+  color: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-clear-filter:hover {
+  background: var(--danger);
+  transform: scale(1.05);
+}
+
 /* 成就网格 */
 .achievements-grid {
   display: grid;

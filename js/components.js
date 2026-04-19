@@ -150,6 +150,8 @@ const Components = {
   renderMovies() {
     const search = document.getElementById('search-input').value.toLowerCase();
     const genre = document.getElementById('genre-filter').value;
+    const year = document.getElementById('year-filter').value;
+    const month = document.getElementById('month-filter').value;
     
     let filtered = [...appState.movies].sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
     
@@ -158,6 +160,18 @@ const Components = {
     }
     if (genre) {
       filtered = filtered.filter(m => (m.genre || '').includes(genre));
+    }
+    if (year) {
+      filtered = filtered.filter(m => {
+        const movieYear = new Date(m.watch_date).getFullYear().toString();
+        return movieYear === year;
+      });
+    }
+    if (month) {
+      filtered = filtered.filter(m => {
+        const movieMonth = (new Date(m.watch_date).getMonth() + 1).toString();
+        return movieMonth === month;
+      });
     }
     
     const container = document.getElementById('all-movies');
@@ -175,6 +189,18 @@ const Components = {
    */
   filterMovies() {
     Utils.debounce(() => this.renderMovies(), 300)();
+  },
+
+  /**
+   * 清除所有筛选条件
+   */
+  clearFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('genre-filter').value = '';
+    document.getElementById('year-filter').value = '';
+    document.getElementById('month-filter').value = '';
+    this.renderMovies();
+    toast.info('已清除所有筛选条件');
   },
 
   /**
@@ -332,6 +358,22 @@ const Components = {
     const allGenres = [...Config.DEFAULT_GENRES, ...appState.customGenres];
     select.innerHTML = '<option value="">全部类型</option>' + 
       allGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    
+    this.renderYearOptions();
+  },
+
+  /**
+   * 渲染年份筛选选项
+   */
+  renderYearOptions() {
+    const select = document.getElementById('year-filter');
+    if (!select) return;
+    
+    const years = [...new Set(appState.movies.map(m => new Date(m.watch_date).getFullYear()))];
+    years.sort((a, b) => b - a);
+    
+    select.innerHTML = '<option value="">全部年份</option>' + 
+      years.map(y => `<option value="${y}">${y}年</option>`).join('');
   },
 
   /**
