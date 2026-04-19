@@ -182,6 +182,8 @@ const Components = {
       this.bindMovieCardClicks();
       this.initLazyLoad();
     }
+    
+    this.updateYearFilter();
   },
 
   /**
@@ -359,15 +361,22 @@ const Components = {
     select.innerHTML = '<option value="">全部类型</option>' + 
       allGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
     
-    this.renderYearOptions();
+    this.updateYearFilter();
   },
 
   /**
-   * 渲染年份筛选选项
+   * 更新年份筛选选项
    */
-  renderYearOptions() {
+  updateYearFilter() {
     const select = document.getElementById('year-filter');
-    if (!select) return;
+    if (!select) {
+      setTimeout(() => this.updateYearFilter(), 100);
+      return;
+    }
+    
+    if (appState.movies.length === 0) {
+      return;
+    }
     
     const years = [...new Set(appState.movies.map(m => new Date(m.watch_date).getFullYear()))];
     years.sort((a, b) => b - a);
