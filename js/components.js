@@ -178,12 +178,50 @@ const Components = {
     if (filtered.length === 0) {
       container.innerHTML = '<p class="empty-state">没有找到匹配的电影</p>';
     } else {
-      container.innerHTML = filtered.map(m => this.renderMovieCard(m)).join('');
+      container.innerHTML = this.renderMoviesGroupedByMonth(filtered);
       this.bindMovieCardClicks();
       this.initLazyLoad();
     }
     
     this.updateYearFilter();
+  },
+
+  /**
+   * 按月份分组渲染电影列表
+   * @param {Array} movies - 电影列表
+   * @returns {string} HTML
+   */
+  renderMoviesGroupedByMonth(movies) {
+    const groups = {};
+    
+    movies.forEach(m => {
+      const date = new Date(m.watch_date);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const key = `${year}-${String(month).padStart(2, '0')}`;
+      
+      if (!groups[key]) {
+        groups[key] = {
+          label: `${year}年${String(month).padStart(2, '0')}月`,
+          movies: []
+        };
+      }
+      groups[key].movies.push(m);
+    });
+    
+    let html = '';
+    Object.values(groups).forEach(group => {
+      html += `
+        <div class="movie-month-group">
+          <div class="month-group-header">${group.label}</div>
+          <div class="month-group-movies">
+            ${group.movies.map(m => this.renderMovieCard(m)).join('')}
+          </div>
+        </div>
+      `;
+    });
+    
+    return html;
   },
 
   /**
@@ -330,11 +368,96 @@ const Components = {
     const container = document.getElementById('monthly-chart');
     if (!container) return;
     
+    const moviesByMonth = {};
+    appState.movies.forEach(m => {
+      const key = Utils.getMonthKey(m.watch_date);
+      if (!moviesByMonth[key]) {
+        moviesByMonth[key] = [];
+      }
+      moviesByMonth[key].push(m);
+    });
+    
     container.innerHTML = monthKeys.map((month, i) => {
       const count = monthlyCounts[month] || 0;
       const height = (count / maxCount) * 100;
-      return `<div class="month-bar" style="height: ${height}%" data-count="${count}" data-month="${monthLabels[i]}"></div>`;
+      const movies = moviesByMonth[month] || [];
+      const moviesJson = encodeURIComponent(JSON.stringify(movies));
+      const year = month.split('-')[0];
+      const monthNum = parseInt(month.split('-')[1]);
+      const title = `${year}年${monthNum}月`;
+      return `<div class="month-bar" style="height: ${height}%" 
+        data-count="${count}" 
+        data-month="${monthLabels[i]}"
+        data-month-key="${month}"
+        data-movies="${moviesJson}"
+        data-title="${title}"
+        onclick="Components.showMonthDetail('${month}')"></div>`;
     }).join('');
+  },
+
+  /**
+   * 显示月份详情弹窗
+   * @param {string} monthKey - 月份 key (YYYY-MM)
+   */
+  showMonthDetail(monthKey) {
+    const movies = appState.movies.filter(m => Utils.getMonthKey(m.watch_date) === monthKey);
+    
+    if (movies.length === 0) return;
+    
+    const [year, month] = monthKey.split('-');
+    const title = `${year}年${parseInt(month)}月`;
+    
+    const moviesHtml = movies
+      .sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date))
+      .map(m => {
+        const date = new Date(m.watch_date);
+        const day = date.getDate();
+        const genres = Utils.getGenreNames(m.genre);
+        return `
+          <div class="month-detail-item">
+            <div class="month-detail-date">${day}日</div>
+            <div class="month-detail-info">
+              <div class="month-detail-title">${m.movie_name}</div>
+              <div class="month-detail-meta">${m.duration_minutes ? m.duration_minutes + '分钟 · ' : ''}${genres}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    
+    const html = `
+      <div class="modal" id="month-detail-modal">
+        <div class="modal-content">
+          <span class="close" onclick="Components.hideMonthDetail()">&times;</span>
+          <h2>${title}</h2>
+          <p class="month-detail-count">共 ${movies.length} 部</p>
+          <div class="month-detail-list">
+            ${moviesHtml}
+          </div>
+        </div>
+      </div>
+    `;
+    
+    const existing = document.getElementById('month-detail-modal');
+    if (existing) existing.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.getElementById('month-detail-modal').classList.add('active');
+    
+    const modal = document.getElementById('month-detail-modal');
+    modal.addEventListener('click', (e) => {
+      if (e.target.id === 'month-detail-modal') this.hideMonthDetail();
+    });
+  },
+
+  /**
+   * 隐藏月份详情弹窗
+   */
+  hideMonthDetail() {
+    const modal = document.getElementById('month-detail-modal');
+    if (modal) {
+      modal.classList.remove('active');
+      setTimeout(() => modal.remove(), 300);
+    }
   },
 
   /**
