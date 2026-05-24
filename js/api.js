@@ -119,6 +119,10 @@ const API = {
         }
       }
       
+      if (typeof Backup !== 'undefined' && Backup.isAutoBackupEnabled()) {
+        Backup.createBackup(appState.movies);
+      }
+      
       return true;
     } catch (err) {
       console.error('保存失败:', err);
@@ -130,6 +134,11 @@ const API = {
         appState.movies.unshift(movieData);
       }
       localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(appState.movies));
+      
+      if (typeof Backup !== 'undefined' && Backup.isAutoBackupEnabled()) {
+        Backup.createBackup(appState.movies);
+      }
+      
       return false;
     }
   },
@@ -162,11 +171,20 @@ const API = {
         await Cache.deleteMovie(id);
       }
       
+      if (typeof Backup !== 'undefined' && Backup.isAutoBackupEnabled()) {
+        Backup.createBackup(appState.movies);
+      }
+      
       return true;
     } catch (err) {
       console.error('删除失败:', err);
       appState.movies = appState.movies.filter(m => m.id !== id);
       localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(appState.movies));
+      
+      if (typeof Backup !== 'undefined' && Backup.isAutoBackupEnabled()) {
+        Backup.createBackup(appState.movies);
+      }
+      
       return false;
     }
   },

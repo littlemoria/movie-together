@@ -143,6 +143,18 @@ const App = {
       importInput.addEventListener('change', (e) => this.handleImportFile(e));
     }
     
+    // 备份文件上传
+    const backupFileInput = document.getElementById('backup-file-input');
+    if (backupFileInput) {
+      backupFileInput.addEventListener('change', (e) => this.handleBackupFileUpload(e));
+    }
+    
+    // 自动备份开关
+    const autoBackupToggle = document.getElementById('auto-backup-toggle');
+    if (autoBackupToggle) {
+      autoBackupToggle.addEventListener('change', () => this.toggleAutoBackup());
+    }
+    
     // 点击其他地方关闭 TMDB 搜索结果
     document.addEventListener('click', (e) => {
       const resultsContainer = document.getElementById('tmdb-search-results');
@@ -388,6 +400,8 @@ const App = {
   showSettings() {
     document.getElementById('settings-modal').classList.add('active');
     this.updateLoginStatus();
+    this.updateBackupStatus();
+    this.renderBackupList();
   },
 
   /**
@@ -885,6 +899,173 @@ const App = {
     
     URL.revokeObjectURL(url);
     Utils.showToast('数据已导出', 'success');
+  },
+
+  /**
+   * 渲染备份列表
+   */
+  renderBackupList() {
+    const container = document.getElementById('backup-list');
+    if (!container) return;
+
+    const backups = Backup.getAllBackups();
+
+    if (backups.length === 0) {
+      container.innerHTML = '<p class="empty-tip">暂无本地备份</p>';
+      return;
+    }
+
+    container.innerHTML = backups.map(b => `
+      <div class="backup-item">
+        <div class="backup-info">
+          <span class="backup-time">${Backup.formatBackupTime(b.timestamp)}</span>
+          <span class="backup-count">${b.count} 条记录</span>
+        </div>
+        <div class="backup-actions">
+          <button class="btn-small" onclick="App.restoreBackup(${b.id})">恢复</button>
+          <button class="btn-small btn-danger" onclick="App.deleteBackup(${b.id})">删除</button>
+        </div>
+      </div>
+    `).join('');
+  },
+
+  /**
+   * 更新备份状态显示
+   */
+  updateBackupStatus() {
+    const statusEl = document.getElementById('backup-status');
+    const timeEl = document.getElementById('backup-last-time');
+    const toggleEl = document.getElementById('auto-backup-toggle');
+
+    if (!statusEl) return;
+
+    const stats = Backup.getStats();
+    const isEnabled = Backup.isAutoBackupEnabled();
+
+    statusEl.textContent = isEnabled ? '✅ 已开启' : '❌ 已关闭';
+    timeEl.textContent = stats.latestTime ? Backup.formatBackupTime(stats.latestTime) : '暂无';
+
+    if (toggleEl) {
+      toggleEl.checked = isEnabled;
+    }
+  },
+
+  /**
+   * 切换自动备份
+   */
+  toggleAutoBackup() {
+    const toggleEl = document.getElementById('auto-backup-toggle');
+    if (!toggleEl) return;
+
+    const enabled = toggleEl.checked;
+    Backup.setAutoBackup(enabled);
+    this.updateBackupStatus();
+
+    if (enabled) {
+      Backup.createBackup(appState.movies);
+      Utils.showToast('自动备份已开启', 'success');
+    } else {
+      Utils.showToast('自动备份已关闭', 'info');
+    }
+  },
+
+  /**
+   * 手动创建备份
+   */
+  createManualBackup() {
+    if (appState.movies.length === 0) {
+      Utils.showToast('没有可备份的数据', 'info');
+      return;
+    }
+
+    Backup.createBackup(appState.movies);
+    this.updateBackupStatus();
+    this.renderBackupList();
+    Utils.showToast('备份已创建', 'success');
+  },
+
+  /**
+   * 下载备份文件
+   */
+  downloadBackupFile() {
+    const backup = Backup.getLatestBackup();
+    if (!backup) {
+      Utils.showToast('没有可下载的备份', 'error');
+      return;
+    }
+
+    Backup.downloadBackup(backup);
+  },
+
+  /**
+   * 恢复指定备份
+   * @param {number} id - 备份ID
+   */
+  async restoreBackup(id) {
+    const backup = Backup.getBackupById(id);
+    if (!backup) {
+      Utils.showToast('备份不存在', 'error');
+      return;
+    }
+
+    const confirmed = await Utils.confirm(`确定要恢复 ${Backup.formatBackupTime(backup.timestamp)} 的备份吗？\n\n将恢复 ${backup.count} 条记录。`);
+
+    if (confirmed) {
+      await Backup.restore(backup.data);
+      this.updateBackupStatus();
+    }
+  },
+
+  /**
+   * 删除指定备份
+   * @param {number} id - 备份ID
+   */
+  deleteBackup(id) {
+    Backup.deleteBackup(id);
+    this.renderBackupList();
+    this.updateBackupStatus();
+    Utils.showToast('备份已删除', 'success');
+  },
+
+  /**
+   * 清除所有备份
+   */
+  clearAllBackups() {
+    Backup.clearAllBackups();
+    this.renderBackupList();
+    this.updateBackupStatus();
+    Utils.showToast('所有备份已清除', 'success');
+  },
+
+  /**
+   * 处理备份文件上传
+   * @param {Event} e - 文件选择事件
+   */
+  async handleBackupFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const backup = await Backup.parseBackupFile(file);
+
+      const confirmed = await Utils.confirm(`检测到备份文件\n\n时间：${new Date(backup.timestamp).toLocaleString('zh-CN')}\n记录数：${backup.data.length} 条\n\n是否恢复此备份？`);
+
+      if (confirmed) {
+        await Backup.restore(backup.data);
+        this.updateBackupStatus();
+      }
+    } catch (err) {
+      Utils.showToast(err.message || '无法解析备份文件', 'error');
+    }
+
+    e.target.value = '';
+  },
+
+  /**
+   * 触发备份文件上传
+   */
+  triggerBackupUpload() {
+    document.getElementById('backup-file-input').click();
   }
 };
 

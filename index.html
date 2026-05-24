@@ -68,6 +68,7 @@
   <script src="js/cache.js"></script>
   <script src="js/sync.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/backup.js"></script>
   <script src="js/components.js"></script>
   <script src="js/toast.js"></script>
   <script src="js/app.js"></script>
@@ -352,6 +353,44 @@
           
           <button class="btn-primary btn-save-bg" onclick="App.saveBackgroundSettings()">💾 保存并同步到云端</button>
           <p class="setting-tip">保存后会同步到云端，另一设备刷新即可看到</p>
+        </div>
+
+        <!-- 数据备份与恢复 -->
+        <div class="settings-section">
+          <h3>💾 数据备份与恢复</h3>
+          
+          <!-- 自动备份开关 -->
+          <div class="backup-toggle-row">
+            <label>自动备份</label>
+            <input type="checkbox" id="auto-backup-toggle" checked>
+          </div>
+          <p class="setting-tip">开启后，每次添加/编辑/删除电影时自动创建本地备份</p>
+          
+          <!-- 备份状态 -->
+          <div class="backup-status-row">
+            <span>自动备份状态：</span>
+            <span id="backup-status">✅ 已开启</span>
+            <span>最近备份：</span>
+            <span id="backup-last-time">暂无</span>
+          </div>
+          
+          <!-- 手动操作按钮 -->
+          <div class="backup-actions-row">
+            <button class="btn-small" onclick="App.createManualBackup()">📦 创建备份</button>
+            <button class="btn-small" onclick="App.downloadBackupFile()">📥 下载备份</button>
+            <button class="btn-small" onclick="App.triggerBackupUpload()">📤 上传恢复</button>
+            <input type="file" id="backup-file-input" accept=".json" style="display:none" onchange="App.handleBackupFileUpload(event)">
+          </div>
+          
+          <!-- 备份列表 -->
+          <div class="backup-list-container">
+            <h4>可用本地备份</h4>
+            <div id="backup-list">
+              <p class="empty-tip">暂无本地备份</p>
+            </div>
+          </div>
+          
+          <button class="btn-small btn-danger" onclick="App.clearAllBackups()">🗑️ 清除所有备份</button>
         </div>
 
         <!-- 管理员设置 -->

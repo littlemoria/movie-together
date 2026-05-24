@@ -822,6 +822,93 @@ body {
   margin-bottom: 10px;
 }
 
+/* 备份相关样式 */
+.backup-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.backup-toggle-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.backup-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.backup-status-row span:nth-child(odd) {
+  color: var(--text-light);
+}
+
+.backup-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.backup-list-container {
+  margin-bottom: 12px;
+}
+
+.backup-list-container h4 {
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.backup-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: var(--card-bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .backup-item {
+  background: #1a1a2e;
+}
+
+.backup-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.backup-time {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.backup-count {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.backup-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.empty-tip {
+  font-size: 13px;
+  color: var(--text-light);
+  text-align: center;
+  padding: 12px;
+}
+
 /* 底部导航 */
 .bottom-nav {
   position: fixed;
