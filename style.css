@@ -9,10 +9,12 @@
   --bg: #F8F9FA;
   --text: #2D3436;
   --text-light: #636E72;
-  --accent: #6C5CE7;
-  --accent-light: #A29BFE;
+  --accent: #7B68CE;
+  --accent-light: #9B8DD4;
   --success: #00B894;
   --danger: #E74C3C;
+  --secondary: #95A5A6;
+  --secondary-bg: #ECF0F1;
   --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   --radius: 12px;
   --radius-sm: 8px;
@@ -28,6 +30,8 @@
   --accent-light: #5B4FCF;
   --success: #00B894;
   --danger: #E74C3C;
+  --secondary: #BDC3C7;
+  --secondary-bg: #2D2D4A;
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   --border-color: #2D2D4A;
 }
@@ -371,6 +375,31 @@ body {
 
 .btn-danger {
   background: var(--danger);
+}
+
+.btn-secondary {
+  background: var(--secondary-bg);
+  color: var(--secondary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: var(--border-color);
+}
+
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+}
+
+.btn-small:disabled,
+.btn-small.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .btn-delete {
