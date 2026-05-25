@@ -7,13 +7,13 @@
  * - 此文件包含非敏感的默认配置
  */
 
-// 从环境配置读取（env.js）
+// 从环境配置读取（env.js 或 index.html 内联默认值）
 const getEnvConfig = () => {
   return window.ENV || {
-    SUPABASE_URL: 'YOUR_SUPABASE_URL',
-    SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
-    TMDB_API_KEY: 'YOUR_TMDB_API_KEY',
-    ADMIN_PASSWORD: 'change-this-password',
+    SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc',
+    TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
+    ADMIN_PASSWORD: 'huiwan111',
     DEBUG: false
   };
 };
@@ -21,16 +21,13 @@ const getEnvConfig = () => {
 const envConfig = getEnvConfig();
 
 const Config = {
-  // Supabase 配置（从 env.js 读取）
   SUPABASE_URL: envConfig.SUPABASE_URL,
   SUPABASE_KEY: envConfig.SUPABASE_ANON_KEY,
 
-  // TMDB API 配置
   TMDB_API_KEY: envConfig.TMDB_API_KEY,
   TMDB_IMAGE_BASE: 'https://image.tmdb.org/t/p/w200',
   TMDB_IMAGE_BASE_LG: 'https://image.tmdb.org/t/p/w500',
 
-  // 管理员密码（从 env.js 读取）
   DEFAULT_ADMIN_PASSWORD: envConfig.ADMIN_PASSWORD,
   
   // 调试模式

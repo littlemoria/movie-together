@@ -46,11 +46,13 @@
   
   <!-- 环境配置（必须在其他 JS 之前加载） -->
   <script>
+    // Supabase anon key 是公开的（有 RLS 保护），TMDB key 是免费 key，可安全放前端
+    // 只有管理员密码敏感，通过 env.js 覆盖（本地开发）或使用默认值（部署环境）
     window.ENV = {
-      SUPABASE_URL: 'YOUR_SUPABASE_URL',
-      SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
-      TMDB_API_KEY: 'YOUR_TMDB_API_KEY',
-      ADMIN_PASSWORD: 'change-this-password',
+      SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc',
+      TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
+      ADMIN_PASSWORD: 'huiwan111',
       DEBUG: false
     };
   </script>
