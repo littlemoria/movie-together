@@ -5,6 +5,7 @@ const DYNAMIC_CACHE = 'cinememo-dynamic-v1';
 const STATIC_ASSETS = [
   'index.html',
   'style.css',
+  'js/logger.js',
   'js/config.js',
   'js/lazyload.js',
   'js/utils.js',

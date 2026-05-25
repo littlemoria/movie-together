@@ -27,7 +27,10 @@ const Toast = {
       id: Date.now() + Math.random(),
       message,
       type,
-      ...options
+      action: options.action || null,
+      onAction: options.onAction || null,
+      onDismiss: options.onDismiss || null,
+      duration: options.duration || this.config.duration
     };
     
     this.queue.push(toast);
@@ -62,11 +65,26 @@ const Toast = {
     const icon = this.getIcon(toast.type);
     
     // 设置内容
+    const actionHtml = toast.action
+      ? `<button class="toast-action" data-toast-id="${toast.id}">${toast.action}</button>`
+      : '';
+
     toastEl.innerHTML = `
       <span class="toast-icon">${icon}</span>
       <span class="toast-message">${toast.message}</span>
+      ${actionHtml}
       <button class="toast-close" onclick="Toast.dismiss('${toast.id}')">&times;</button>
     `;
+
+    if (toast.action && toast.onAction) {
+      const actionBtn = toastEl.querySelector('.toast-action');
+      if (actionBtn) {
+        actionBtn.addEventListener('click', () => {
+          toast.onAction();
+          this.dismiss(toast.id);
+        });
+      }
+    }
     
     // 添加动画类
     if (this.config.animation) {
@@ -79,7 +97,7 @@ const Toast = {
     this.activeToasts.push(toast);
     
     // 自动消失
-    const duration = toast.duration || this.config.duration;
+    const duration = toast.duration;
     setTimeout(() => {
       this.dismiss(toast.id);
     }, duration);
@@ -107,17 +125,20 @@ const Toast = {
   dismiss(id) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    
+
     const toastEl = container.querySelector(`[data-id="${id}"]`);
     if (!toastEl) return;
-    
-    // 添加消失动画
+
+    const activeToast = this.activeToasts.find(t => t.id == id);
+
     toastEl.classList.add('toast-hide');
-    
-    // 移除元素
+
     setTimeout(() => {
       toastEl.remove();
       this.activeToasts = this.activeToasts.filter(t => t.id != id);
+      if (activeToast && activeToast.onDismiss) {
+        activeToast.onDismiss();
+      }
       this.processQueue();
     }, 300);
   },

@@ -25,6 +25,15 @@ const Components = {
       this.bindMovieCardClicks();
       this.initLazyLoad();
     }
+
+    this.hideSkeleton('home');
+  },
+
+  hideSkeleton(page) {
+    const skeleton = document.getElementById(page + '-skeleton');
+    const content = document.getElementById(page + '-content');
+    if (skeleton) skeleton.classList.remove('visible');
+    if (content) content.classList.add('loaded');
   },
 
   initLazyLoad() {

@@ -8,6 +8,9 @@ const App = {
    * 初始化应用
    */
   async init() {
+    Logger.init();
+    Logger.info('App', 'CineMemo 初始化开始');
+    
     Utils.loadConfig();
     Utils.loadCustomGenres();
     
@@ -267,7 +270,7 @@ const App = {
   showMovieModal(movie = null) {
     // 登录验证
     if (!movie && !appState.isAdmin) {
-      Utils.showToast('请先登录后再添加观影记录\n\n点击「设置」页面进行登录\n默认密码：huiwan111', 'info');
+      Utils.showToast('请先登录后再添加观影记录\n\n点击「设置」页面进行登录', 'info');
       this.showSettings();
       return;
     }
@@ -375,23 +378,60 @@ const App = {
   },
 
   /**
-   * 删除电影
+   * 删除电影（软删除 + 可撤销）
    */
   async deleteMovie() {
     const id = document.getElementById('movie-id').value;
     if (!id) return;
-    
-    if (await Utils.confirm('确定要删除这条记录吗？')) {
+
+    const deletedMovie = appState.movies.find(m => m.id == id);
+    if (!deletedMovie) return;
+
+    const movieName = deletedMovie.movie_name || '未知电影';
+    let undoTimeout = null;
+    let undone = false;
+
+    const doActualDelete = async () => {
+      if (undone) return;
       await API.deleteMovie(id);
-      this.hideMovieModal();
-      
-      Components.renderHome();
-      Components.renderMovies();
-      Components.renderAchievements();
-      Components.renderStats();
-      
-      Utils.showToast('删除成功', 'success');
-    }
+      Logger.info('App', '已彻底删除:', movieName);
+    };
+
+    appState.movies = appState.movies.filter(m => m.id != id);
+    this.hideMovieModal();
+
+    Components.renderHome();
+    Components.renderMovies();
+    Components.renderAchievements();
+    Components.renderStats();
+
+    const toastId = Toast.show(`已删除「${movieName}」`, 'warning', {
+      action: '撤销',
+      duration: 5000,
+      onAction: async () => {
+        undone = true;
+        if (undoTimeout) clearTimeout(undoTimeout);
+
+        appState.movies.push(deletedMovie);
+        appState.movies.sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
+
+        await API.saveMovie(deletedMovie, id);
+
+        Components.renderHome();
+        Components.renderMovies();
+        Components.renderAchievements();
+        Components.renderStats();
+
+        Utils.showToast('已撤销删除', 'success');
+      },
+      onDismiss: () => {
+        if (!undone) doActualDelete();
+      }
+    });
+
+    undoTimeout = setTimeout(() => {
+      if (!undone) doActualDelete();
+    }, 5000);
   },
 
   /**
@@ -1069,7 +1109,63 @@ const App = {
   }
 };
 
+const ErrorBoundary = {
+  errorShown: false,
+
+  showErrorUI(message) {
+    if (this.errorShown) return;
+    this.errorShown = true;
+
+    const app = document.getElementById('app');
+    if (!app) return;
+
+    app.innerHTML = `
+      <div style="
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; min-height: 60vh; padding: 40px 20px;
+        text-align: center; font-family: 'Noto Sans SC', sans-serif;
+      ">
+        <div style="font-size: 64px; margin-bottom: 20px;">😿</div>
+        <h2 style="color: var(--text, #2D3436); margin-bottom: 12px;">出了点小问题</h2>
+        <p style="color: var(--text-light, #636E72); font-size: 14px; margin-bottom: 24px; max-width: 400px;">
+          ${message || '应用加载时遇到了意外错误，请尝试刷新页面。'}
+        </p>
+        <button onclick="location.reload()" style="
+          background: linear-gradient(135deg, var(--accent, #7B68CE), var(--accent-light, #9B8DD4));
+          color: #fff; border: none; padding: 12px 32px; border-radius: 12px;
+          font-size: 16px; cursor: pointer;
+        ">刷新页面</button>
+        <p style="color: var(--text-light, #636E72); font-size: 12px; margin-top: 16px;">
+          如果问题持续出现，请尝试清除浏览器缓存
+        </p>
+      </div>
+    `;
+  },
+
+  init() {
+    window.addEventListener('error', (event) => {
+      Logger.error('ErrorBoundary', '未捕获错误:', event.error ? event.error.message : event.message);
+      if (event.error && event.error.stack) {
+        Logger.error('ErrorBoundary', event.error.stack);
+      }
+      ErrorBoundary.showErrorUI('应用运行时遇到了未预期的错误。');
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+      Logger.error('ErrorBoundary', '未处理Promise拒绝:', event.reason);
+      ErrorBoundary.showErrorUI('数据加载失败，请检查网络连接后刷新。');
+    });
+  }
+};
+
+ErrorBoundary.init();
+
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
-  App.init();
+  try {
+    App.init();
+  } catch (err) {
+    Logger.error('App', '初始化失败:', err.message, err.stack);
+    ErrorBoundary.showErrorUI('应用初始化失败，请刷新页面重试。');
+  }
 });

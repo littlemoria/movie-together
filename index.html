@@ -46,12 +46,11 @@
   
   <!-- 环境配置（必须在其他 JS 之前加载） -->
   <script>
-    // 先设置默认的 window.ENV
     window.ENV = {
-      SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
-      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc',
-      TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
-      ADMIN_PASSWORD: 'huiwan111',
+      SUPABASE_URL: 'YOUR_SUPABASE_URL',
+      SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
+      TMDB_API_KEY: 'YOUR_TMDB_API_KEY',
+      ADMIN_PASSWORD: 'change-this-password',
       DEBUG: false
     };
   </script>
@@ -60,6 +59,7 @@
   <script src="env.js" onerror="console.log('env.js not found, using default config')"></script>
   
   <!-- 模块化 JS -->
+  <script src="js/logger.js"></script>
   <script src="js/config.js"></script>
   <script src="js/lazyload.js"></script>
   <script src="js/utils.js"></script>
@@ -132,29 +132,39 @@
     <main id="main-content">
       <!-- 首页 -->
       <section id="home-page" class="page active">
-        <div class="hero-card">
-          <div class="watch-count">
-            <span class="count-number" id="total-movies">0</span>
-            <span class="count-label">次一起看</span>
-          </div>
-          <div class="hero-stats">
-            <div class="stat-item">
-              <span class="stat-value" id="total-hours">0</span>
-              <span class="stat-label">小时</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value" id="total-minutes">0</span>
-              <span class="stat-label">分钟</span>
-            </div>
-          </div>
+        <!-- 骨架屏 -->
+        <div class="skeleton-placeholder visible" id="home-skeleton">
+          <div class="skeleton skeleton-hero"></div>
+          <div class="skeleton skeleton-card"></div>
+          <div class="skeleton skeleton-card"></div>
+          <div class="skeleton skeleton-card-small"></div>
         </div>
+        <!-- 真实内容 -->
+        <div class="skeleton-target" id="home-content">
+          <div class="hero-card">
+            <div class="watch-count">
+              <span class="count-number" id="total-movies">0</span>
+              <span class="count-label">次一起看</span>
+            </div>
+            <div class="hero-stats">
+              <div class="stat-item">
+                <span class="stat-value" id="total-hours">0</span>
+                <span class="stat-label">小时</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value" id="total-minutes">0</span>
+                <span class="stat-label">分钟</span>
+              </div>
+            </div>
+          </div>
 
-        <div class="recent-section">
-          <h3>最近观看</h3>
-          <div id="recent-movies" class="movie-list"></div>
+          <div class="recent-section">
+            <h3>最近观看</h3>
+            <div id="recent-movies" class="movie-list"></div>
+          </div>
+
+          <button class="btn-primary" id="add-btn">+ 添加观影记录</button>
         </div>
-
-        <button class="btn-primary" id="add-btn">+ 添加观影记录</button>
       </section>
 
       <!-- 影单页 -->

@@ -10,10 +10,10 @@
 // 从环境配置读取（env.js）
 const getEnvConfig = () => {
   return window.ENV || {
-    SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc',
-    TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
-    ADMIN_PASSWORD: 'huiwan111',
+    SUPABASE_URL: 'YOUR_SUPABASE_URL',
+    SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
+    TMDB_API_KEY: 'YOUR_TMDB_API_KEY',
+    ADMIN_PASSWORD: 'change-this-password',
     DEBUG: false
   };
 };
@@ -31,7 +31,7 @@ const Config = {
   TMDB_IMAGE_BASE_LG: 'https://image.tmdb.org/t/p/w500',
 
   // 管理员密码（从 env.js 读取）
-  DEFAULT_ADMIN_PASSWORD: envConfig.ADMIN_PASSWORD || 'huiwan111',
+  DEFAULT_ADMIN_PASSWORD: envConfig.ADMIN_PASSWORD,
   
   // 调试模式
   DEBUG: envConfig.DEBUG || false,
