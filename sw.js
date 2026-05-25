@@ -1,5 +1,5 @@
-const CACHE_NAME = 'cinememo-v1';
-const STATIC_CACHE = 'cinememo-static-v1';
+const CACHE_NAME = 'cinememo-v2';
+const STATIC_CACHE = 'cinememo-static-v2';
 const DYNAMIC_CACHE = 'cinememo-dynamic-v1';
 
 const STATIC_ASSETS = [
@@ -13,7 +13,9 @@ const STATIC_ASSETS = [
   'js/cache.js',
   'js/sync.js',
   'js/api.js',
+  'js/backup.js',
   'js/components.js',
+  'js/toast.js',
   'js/app.js'
 ];
 
@@ -98,7 +100,7 @@ self.addEventListener('fetch', (event) => {
   }
   
   if (isStaticAsset(url)) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(networkFirst(request));
     return;
   }
   
@@ -134,12 +136,7 @@ function isTmdbImage(url) {
          url.hostname.includes('image.tmdb');
 }
 
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) {
-    return cached;
-  }
-  
+async function networkFirst(request) {
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -148,8 +145,9 @@ async function cacheFirst(request) {
     }
     return response;
   } catch (error) {
-    console.log('[SW] Cache first failed:', error);
-    return new Response('Offline', { status: 503 });
+    console.log('[SW] Network failed, using cache:', request.url);
+    const cached = await caches.match(request);
+    return cached || new Response('Offline', { status: 503 });
   }
 }
 
