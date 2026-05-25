@@ -2576,3 +2576,263 @@ body:has(.offline-banner.active) .header {
 .skeleton-target.loaded {
   display: block;
 }
+
+/* ============================================
+   影单模式切换
+   ============================================ */
+.list-mode-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 10px 20px;
+  border: none;
+  background: var(--card-bg);
+  color: var(--text-light);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.mode-btn.active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.mode-btn:not(.active):hover {
+  background: var(--secondary-bg);
+}
+
+/* ============================================
+   Wish List 卡片
+   ============================================ */
+.wishlist-card {
+  display: flex;
+  gap: 16px;
+}
+
+.wishlist-card .movie-card-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.wishlist-add-btn {
+  background: var(--success);
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.wishlist-add-btn:hover {
+  opacity: 0.85;
+}
+
+.wishlist-remove-btn {
+  background: none;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.wishlist-remove-btn:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* TMDB 搜索中的「加入想看」按钮 */
+.tmdb-wishlist-btn {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.tmdb-wishlist-btn:hover {
+  opacity: 0.85;
+}
+
+/* ============================================
+   成就庆祝覆盖层
+   ============================================ */
+.celebration-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.celebration-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.celebration-content {
+  text-align: center;
+  z-index: 2;
+  animation: celebration-pop 0.6s ease;
+}
+
+@keyframes celebration-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.celebration-icon {
+  font-size: 80px;
+  margin-bottom: 16px;
+}
+
+.celebration-title {
+  font-size: 28px;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  margin-bottom: 8px;
+}
+
+.celebration-desc {
+  font-size: 16px;
+  color: rgba(255,255,255,0.85);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.confetti-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* ============================================
+   观影日历热力图
+   ============================================ */
+.calendar-heatmap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 8px 0;
+}
+
+.heatmap-months {
+  display: flex;
+  gap: 0;
+  padding-left: 32px;
+  margin-bottom: 4px;
+}
+
+.heatmap-month-label {
+  font-size: 10px;
+  color: var(--text-light);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.heatmap-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.heatmap-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.heatmap-day-label {
+  width: 26px;
+  font-size: 9px;
+  color: var(--text-light);
+  text-align: right;
+}
+
+.heatmap-cells {
+  display: flex;
+  gap: 3px;
+}
+
+.heatmap-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--secondary-bg);
+  transition: background 0.2s;
+}
+
+.heatmap-cell.level-1 {
+  background: rgba(123, 104, 206, 0.25);
+}
+
+.heatmap-cell.level-2 {
+  background: rgba(123, 104, 206, 0.5);
+}
+
+.heatmap-cell.level-3 {
+  background: rgba(123, 104, 206, 0.75);
+}
+
+.heatmap-cell.level-4 {
+  background: rgba(123, 104, 206, 1);
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-light);
+}
+
+.heatmap-legend-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--secondary-bg);
+}
+
+/* ============================================
+   图表 Canvas 居中
+   ============================================ */
+.chart-section canvas {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+}

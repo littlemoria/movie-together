@@ -170,6 +170,10 @@
       <!-- 影单页 -->
       <section id="movies-page" class="page">
         <div class="page-header">
+          <div class="list-mode-toggle">
+            <button class="mode-btn active" onclick="App.switchListMode('watched')" id="mode-watched">✅ 已看</button>
+            <button class="mode-btn" onclick="App.switchListMode('wishlist')" id="mode-wishlist">🔖 想看</button>
+          </div>
           <div class="search-bar">
             <input type="text" id="search-input" placeholder="搜索电影..." oninput="Components.filterMovies()">
           </div>
@@ -238,10 +242,28 @@
           </div>
         </div>
 
+        <!-- 类型雷达图 -->
+        <div class="chart-section">
+          <h3>类型雷达图</h3>
+          <canvas id="radar-chart" width="320" height="320"></canvas>
+        </div>
+
+        <!-- 月度趋势折线图 -->
+        <div class="chart-section">
+          <h3>月度趋势</h3>
+          <canvas id="line-chart" width="520" height="240"></canvas>
+        </div>
+
         <!-- 月度统计 -->
         <div class="chart-section">
           <h3>月度观看</h3>
           <div id="monthly-chart" class="monthly-chart"></div>
+        </div>
+
+        <!-- 观影日历热力图 -->
+        <div class="chart-section">
+          <h3>观影日历</h3>
+          <div id="calendar-heatmap" class="calendar-heatmap"></div>
         </div>
       </section>
     </main>
@@ -421,6 +443,16 @@
 
     <!-- 音乐播放器 -->
     <audio id="audio-player" preload="auto"></audio>
+  </div>
+
+  <!-- 成就庆祝覆盖层 -->
+  <div id="celebration-overlay" class="celebration-overlay">
+    <div class="celebration-content">
+      <div class="celebration-icon" id="celebration-icon">🎉</div>
+      <h2 class="celebration-title" id="celebration-title"></h2>
+      <p class="celebration-desc" id="celebration-desc"></p>
+    </div>
+    <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
   </div>
 
   <!-- 底部导航 -->

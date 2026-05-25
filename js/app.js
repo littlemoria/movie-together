@@ -33,6 +33,9 @@ const App = {
     this.applyTheme(config.theme);
     Components.applyOpacitySettings();
     
+    Components.loadUnlockedAchievements();
+    this.loadWishlist();
+    
     // 获取云端设置
     await API.fetchCloudSettingsWithRetry(3);
     
@@ -226,6 +229,8 @@ const App = {
         Components.renderHome();
         break;
       case 'movies':
+        document.getElementById('mode-watched').classList.toggle('active', appState.movieListMode === 'watched');
+        document.getElementById('mode-wishlist').classList.toggle('active', appState.movieListMode === 'wishlist');
         Components.renderMovies();
         break;
       case 'achievements':
@@ -1106,6 +1111,115 @@ const App = {
    */
   triggerBackupUpload() {
     document.getElementById('backup-file-input').click();
+  },
+
+  /**
+   * 切换影单模式（已看 / 想看）
+   * @param {string} mode - 'watched' | 'wishlist'
+   */
+  switchListMode(mode) {
+    appState.movieListMode = mode;
+    document.getElementById('mode-watched').classList.toggle('active', mode === 'watched');
+    document.getElementById('mode-wishlist').classList.toggle('active', mode === 'wishlist');
+
+    document.getElementById('genre-filter').style.display = mode === 'watched' ? '' : 'none';
+    document.getElementById('year-filter').style.display = mode === 'watched' ? '' : 'none';
+    document.getElementById('month-filter').style.display = mode === 'watched' ? '' : 'none';
+
+    Components.renderMovies();
+  },
+
+  /**
+   * 加载 Wish List
+   */
+  loadWishlist() {
+    const saved = localStorage.getItem(Config.STORAGE_KEYS.WISHLIST);
+    if (saved) {
+      try { appState.wishlist = JSON.parse(saved); } catch (e) { appState.wishlist = []; }
+    }
+  },
+
+  /**
+   * 保存 Wish List
+   */
+  saveWishlist() {
+    localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(appState.wishlist));
+  },
+
+  /**
+   * 从 TMDB 结果添加到 Wish List
+   * @param {number} index - 结果索引
+   */
+  addTmdbToWishlist(index) {
+    const movie = appState.currentTmdbResults[index];
+    if (!movie) return;
+
+    const exists = appState.wishlist.find(w => w.tmdb_id === movie.id);
+    if (exists) {
+      Utils.showToast('已经在想看列表中', 'info');
+      return;
+    }
+
+    const item = {
+      id: 'wl_' + Date.now(),
+      movie_name: movie.title,
+      tmdb_id: movie.id,
+      poster_path: movie.poster_path || null,
+      year: movie.release_date ? movie.release_date.split('-')[0] : '',
+      rating: movie.vote_average ? Math.round(movie.vote_average * 10) / 10 : null,
+      added_at: new Date().toISOString()
+    };
+
+    appState.wishlist.push(item);
+    this.saveWishlist();
+    Utils.showToast(`「${item.movie_name}」已加入想看`, 'success');
+  },
+
+  /**
+   * Wish List → 已看（打开添加弹窗预填）
+   * @param {string} id - Wish List 项 ID
+   */
+  wishlistToWatched(id) {
+    const item = appState.wishlist.find(w => w.id === id);
+    if (!item) return;
+
+    appState.wishlist = appState.wishlist.filter(w => w.id !== id);
+    this.saveWishlist();
+
+    const tempMovie = {
+      movie_name: item.movie_name,
+      tmdb_id: item.tmdb_id,
+      poster_path: item.poster_path,
+      rating: item.rating
+    };
+
+    if (item.tmdb_id) {
+      appState.selectedTmdbMovie = {
+        id: item.tmdb_id,
+        title: item.movie_name,
+        poster_path: item.poster_path,
+        vote_average: item.rating,
+        release_date: item.year ? item.year + '-01-01' : null
+      };
+    }
+
+    this.showMovieModal();
+    document.getElementById('movie-name').value = item.movie_name;
+    document.getElementById('watch-date').valueAsDate = new Date();
+  },
+
+  /**
+   * 从 Wish List 移除
+   * @param {string} id - Wish List 项 ID
+   */
+  removeFromWishlist(id) {
+    const item = appState.wishlist.find(w => w.id === id);
+    appState.wishlist = appState.wishlist.filter(w => w.id !== id);
+    this.saveWishlist();
+    Components.renderMovies();
+    if (item) {
+      Utils.showToast(`「${item.movie_name}」已从想看移除`, 'info');
+    }
   }
 };
 

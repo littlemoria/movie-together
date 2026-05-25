@@ -107,6 +107,8 @@ const Config = {
     CONFIG: 'movie-together-config',
     GENRES: 'movie-together-genres',
     MOVIES: 'movies',
+    WISHLIST: 'movie-together-wishlist',
+    ACHIEVEMENTS: 'movie-together-achievements',
     CACHE: 'movie-together-cache'
   },
 
@@ -129,6 +131,7 @@ let config = {
 // 全局状态
 let appState = {
   movies: [],
+  wishlist: [],
   isAdmin: false,
   customGenres: [],
   currentTrackIndex: -1,
@@ -136,7 +139,9 @@ let appState = {
   musicPaused: true,
   musicPanelOpen: false,
   currentTmdbResults: [],
-  selectedTmdbMovie: null
+  selectedTmdbMovie: null,
+  movieListMode: 'watched',
+  unlockedAchievements: []
 };
 
 // 云端设置

@@ -157,6 +157,11 @@ const Components = {
    * 渲染影单页面
    */
   renderMovies() {
+    if (appState.movieListMode === 'wishlist') {
+      this.renderWishlist();
+      return;
+    }
+
     const search = document.getElementById('search-input').value.toLowerCase();
     const genre = document.getElementById('genre-filter').value;
     const year = document.getElementById('year-filter').value;
@@ -193,6 +198,52 @@ const Components = {
     }
     
     this.updateYearFilter();
+  },
+
+  /**
+   * 渲染 Wish List
+   */
+  renderWishlist() {
+    const search = document.getElementById('search-input').value.toLowerCase();
+    let filtered = [...appState.wishlist];
+
+    if (search) {
+      filtered = filtered.filter(m => m.movie_name.toLowerCase().includes(search));
+    }
+
+    document.getElementById('genre-filter').style.display = appState.movieListMode === 'wishlist' ? 'none' : '';
+    document.getElementById('year-filter').style.display = appState.movieListMode === 'wishlist' ? 'none' : '';
+    document.getElementById('month-filter').style.display = appState.movieListMode === 'wishlist' ? 'none' : '';
+
+    const container = document.getElementById('all-movies');
+    if (filtered.length === 0) {
+      container.innerHTML = '<p class="empty-state">还没有想看的电影～<br>在添加电影时可以从 TMDB 搜索结果中一键加入</p>';
+    } else {
+      container.innerHTML = filtered.map(m => this.renderWishlistCard(m)).join('');
+    }
+  },
+
+  /**
+   * 渲染 Wish List 卡片
+   * @param {Object} item - Wish List 项
+   * @returns {string} HTML
+   */
+  renderWishlistCard(item) {
+    const posterHtml = item.poster_path
+      ? `<img class="movie-card-poster lazy-image" data-src="${Config.TMDB_IMAGE_BASE}${item.poster_path}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="${item.movie_name}">`
+      : `<div class="movie-card-poster" style="background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; align-items: center; justify-content: center; font-size: 30px;">🎬</div>`;
+
+    return `<div class="movie-card wishlist-card" data-id="${item.id}">
+      ${posterHtml}
+      <div class="movie-card-info">
+        <div class="movie-title">${item.movie_name}</div>
+        <div class="movie-meta">${item.year || ''}${item.rating ? ' · ⭐' + item.rating : ''}</div>
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button class="wishlist-add-btn" onclick="event.stopPropagation(); App.wishlistToWatched('${item.id}')">✅ 已看</button>
+          <button class="wishlist-remove-btn" onclick="event.stopPropagation(); App.removeFromWishlist('${item.id}')">🗑️</button>
+        </div>
+      </div>
+    </div>`;
   },
 
   /**
@@ -257,14 +308,118 @@ const Components = {
    */
   renderAchievements() {
     const container = document.getElementById('achievements-grid');
+    const prevUnlocked = new Set(appState.unlockedAchievements);
+    const newUnlocked = [];
+
     container.innerHTML = Config.ACHIEVEMENTS.map(achievement => {
       const unlocked = achievement.condition(appState.movies);
+      if (unlocked && !prevUnlocked.has(achievement.id)) {
+        newUnlocked.push(achievement);
+      }
+      if (unlocked) {
+        appState.unlockedAchievements = [...new Set([...appState.unlockedAchievements, achievement.id])];
+      }
       return `<div class="achievement-card ${unlocked ? 'unlocked' : ''}">
         <div class="achievement-icon">${achievement.icon}</div>
         <div class="achievement-name">${achievement.name}</div>
         <div class="achievement-desc">${achievement.desc}</div>
       </div>`;
     }).join('');
+
+    if (newUnlocked.length > 0) {
+      this.saveUnlockedAchievements();
+      setTimeout(() => this.showCelebration(newUnlocked), 300);
+    }
+  },
+
+  saveUnlockedAchievements() {
+    localStorage.setItem(Config.STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(appState.unlockedAchievements));
+  },
+
+  loadUnlockedAchievements() {
+    const saved = localStorage.getItem(Config.STORAGE_KEYS.ACHIEVEMENTS);
+    if (saved) {
+      try { appState.unlockedAchievements = JSON.parse(saved); } catch (e) {}
+    }
+  },
+
+  showCelebration(achievements) {
+    const overlay = document.getElementById('celebration-overlay');
+    const canvas = document.getElementById('confetti-canvas');
+    const iconEl = document.getElementById('celebration-icon');
+    const titleEl = document.getElementById('celebration-title');
+    const descEl = document.getElementById('celebration-desc');
+
+    const ach = achievements[0];
+    iconEl.textContent = ach.icon || '🎉';
+    titleEl.textContent = `解锁成就：${ach.name}`;
+    descEl.textContent = ach.desc;
+
+    overlay.classList.add('active');
+    this.startConfetti(canvas);
+
+    setTimeout(() => {
+      overlay.classList.remove('active');
+    }, 3500);
+  },
+
+  startConfetti(canvas) {
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ['#7B68CE', '#00B894', '#FDCB6E', '#E17055', '#74B9FF', '#A29BFE', '#FD79A8', '#FF6B6B'];
+    const confetti = [];
+    const particleCount = 120;
+
+    for (let i = 0; i < particleCount; i++) {
+      confetti.push({
+        x: Math.random() * canvas.width,
+        y: -20 - Math.random() * canvas.height,
+        w: Math.random() * 10 + 4,
+        h: Math.random() * 6 + 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        vx: (Math.random() - 0.5) * 3,
+        vy: Math.random() * 3 + 2,
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 10,
+        opacity: 1
+      });
+    }
+
+    let frame = 0;
+    const maxFrames = 140;
+
+    const animate = () => {
+      if (frame >= maxFrames) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+      }
+      frame++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      confetti.forEach(p => {
+        p.x += p.vx;
+        p.vy += 0.05;
+        p.y += p.vy;
+        p.rotation += p.rotationSpeed;
+        if (frame > maxFrames - 40) {
+          p.opacity = Math.max(0, p.opacity - 0.025);
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation * Math.PI / 180);
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      });
+
+      requestAnimationFrame(animate);
+    };
+
+    animate();
   },
 
   /**
@@ -273,18 +428,17 @@ const Components = {
   renderStats() {
     const totalMinutes = Utils.getTotalMinutes(appState.movies);
     
-    // 更新基本统计
     document.getElementById('stat-total').textContent = appState.movies.length;
     document.getElementById('stat-hours').textContent = Math.floor(totalMinutes / 60);
     document.getElementById('stat-avg').textContent = appState.movies.length ? Math.round(totalMinutes / appState.movies.length) : 0;
     
-    // 类型统计
     const genreCounts = Utils.getGenreStats(appState.movies);
     this.drawPieChart(genreCounts);
     this.renderGenreChart(genreCounts);
-    
-    // 月度统计
+    this.drawRadarChart(genreCounts);
+    this.drawLineChart();
     this.renderMonthlyChart();
+    this.renderCalendarHeatmap();
   },
 
   /**
@@ -546,6 +700,7 @@ const Components = {
           <div class="tmdb-search-item-title">${movie.title}</div>
           <div class="tmdb-search-item-year">${movie.release_date ? movie.release_date.split('-')[0] : '未知'}</div>
         </div>
+        <button class="tmdb-wishlist-btn" onclick="event.stopPropagation(); App.addTmdbToWishlist(${index})">🔖 想看</button>
       </div>
     `).join('');
   },
@@ -593,8 +748,295 @@ const Components = {
   },
 
   /**
-   * 更新背景类型显示
+   * 绘制类型雷达图
+   * @param {Object} genreCounts - 类型统计
    */
+  drawRadarChart(genreCounts) {
+    const canvas = document.getElementById('radar-chart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const entries = Object.entries(genreCounts);
+    if (entries.length < 3) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-light').trim() || '#636E72';
+      ctx.font = '14px Noto Sans SC';
+      ctx.textAlign = 'center';
+      ctx.fillText('需要至少3种类型才能显示雷达图', canvas.width / 2, canvas.height / 2);
+      return;
+    }
+
+    const maxCount = Math.max(...entries.map(e => e[1]), 1);
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const maxRadius = 110;
+    const levels = 4;
+    const angleStep = (2 * Math.PI) / entries.length;
+
+    const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#2D3436';
+    const borderColor = getComputedStyle(document.body).getPropertyValue('--border-color').trim() || '#E0E0E0';
+    const accentColor = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#7B68CE';
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let level = 1; level <= levels; level++) {
+      const r = (maxRadius / levels) * level;
+      ctx.beginPath();
+      entries.forEach((_, i) => {
+        const angle = angleStep * i - Math.PI / 2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    entries.forEach((_, i) => {
+      const angle = angleStep * i - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + maxRadius * Math.cos(angle), cy + maxRadius * Math.sin(angle));
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    ctx.beginPath();
+    entries.forEach(([genre, count], i) => {
+      const r = (count / maxCount) * maxRadius;
+      const angle = angleStep * i - Math.PI / 2;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.fillStyle = hexToRgba(accentColor, 0.3);
+    ctx.fill();
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    entries.forEach(([genre, count], i) => {
+      const r = (count / maxCount) * maxRadius + 5;
+      const angle = angleStep * i - Math.PI / 2;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, 2 * Math.PI);
+      ctx.fillStyle = accentColor;
+      ctx.fill();
+
+      const labelAngle = angleStep * i - Math.PI / 2;
+      const labelRadius = maxRadius + 25;
+      const lx = cx + labelRadius * Math.cos(labelAngle);
+      const ly = cy + labelRadius * Math.sin(labelAngle);
+      ctx.fillStyle = textColor;
+      ctx.font = '11px Noto Sans SC';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(Utils.getGenreName(genre), lx, ly);
+    });
+  },
+
+  /**
+   * 绘制月度趋势折线图
+   */
+  drawLineChart() {
+    const canvas = document.getElementById('line-chart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const { monthKeys, monthLabels, monthlyCounts } = Utils.getMonthlyStats(appState.movies, 12);
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = 520 * dpr;
+    canvas.height = 240 * dpr;
+    canvas.style.width = '520px';
+    canvas.style.height = '240px';
+    ctx.scale(dpr, dpr);
+
+    const padding = { top: 20, right: 20, bottom: 30, left: 30 };
+    const chartW = 520 - padding.left - padding.right;
+    const chartH = 240 - padding.top - padding.bottom;
+
+    const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#2D3436';
+    const textLightColor = getComputedStyle(document.body).getPropertyValue('--text-light').trim() || '#636E72';
+    const borderColor = getComputedStyle(document.body).getPropertyValue('--border-color').trim() || '#E0E0E0';
+    const accentColor = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#7B68CE';
+
+    const values = monthKeys.map(k => monthlyCounts[k] || 0);
+    const maxVal = Math.max(...values, 1);
+    const ySteps = 4;
+
+    ctx.clearRect(0, 0, 520, 240);
+
+    for (let i = 0; i <= ySteps; i++) {
+      const y = padding.top + (chartH / ySteps) * i;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(520 - padding.right, y);
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = textLightColor;
+      ctx.font = '10px Noto Sans SC';
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(maxVal - (maxVal / ySteps) * i), padding.left - 6, y + 4);
+    }
+
+    monthLabels.forEach((label, i) => {
+      const x = padding.left + (chartW / (monthLabels.length - 1)) * i;
+      ctx.fillStyle = textLightColor;
+      ctx.font = '10px Noto Sans SC';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x, 240 - padding.bottom + 16);
+    });
+
+    ctx.beginPath();
+    values.forEach((val, i) => {
+      const x = padding.left + (chartW / (values.length - 1)) * i;
+      const y = padding.top + chartH - (val / maxVal) * chartH;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+    gradient.addColorStop(0, hexToRgba(accentColor, 0.25));
+    gradient.addColorStop(1, hexToRgba(accentColor, 0.02));
+    ctx.lineTo(padding.left + chartW, padding.top + chartH);
+    ctx.lineTo(padding.left, padding.top + chartH);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    values.forEach((val, i) => {
+      const x = padding.left + (chartW / (values.length - 1)) * i;
+      const y = padding.top + chartH - (val / maxVal) * chartH;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, 2 * Math.PI);
+      ctx.fillStyle = accentColor;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  },
+
+  /**
+   * 渲染观影日历热力图
+   */
+  renderCalendarHeatmap() {
+    const container = document.getElementById('calendar-heatmap');
+    if (!container) return;
+
+    if (appState.movies.length === 0) {
+      container.innerHTML = '<p class="empty-state">暂无观影记录</p>';
+      return;
+    }
+
+    const now = new Date();
+    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 364);
+
+    const startDay = startDate.getDay();
+    const totalDays = 365;
+
+    const dateCounts = {};
+    appState.movies.forEach(m => {
+      const key = m.watch_date;
+      dateCounts[key] = (dateCounts[key] || 0) + 1;
+    });
+
+    const cells = [];
+    for (let i = 0; i < totalDays; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().split('T')[0];
+      cells.push({
+        date: key,
+        count: dateCounts[key] || 0,
+        dayOfWeek: d.getDay(),
+        month: d.getMonth()
+      });
+    }
+
+    const weeks = [];
+    let paddingDays = startDay;
+    for (let i = 0; i < paddingDays; i++) {
+      cells.unshift({ date: '', count: -1, dayOfWeek: i, month: -1 });
+    }
+
+    while (cells.length > 0) {
+      weeks.push(cells.splice(0, 7));
+    }
+
+    const dayLabels = ['', '一', '', '三', '', '五', ''];
+    const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+
+    const monthPositions = [];
+    weeks.forEach((week, wi) => {
+      week.forEach(cell => {
+        if (cell.month >= 0 && (monthPositions.length === 0 || monthPositions[monthPositions.length - 1].month !== cell.month)) {
+          monthPositions.push({ month: cell.month, week: wi });
+        }
+      });
+    });
+
+    let monthsHtml = '<div class="heatmap-months" style="display: flex; gap: 3px;">';
+    const totalWeeks = weeks.length;
+    monthPositions.forEach((mp, i) => {
+      const nextPos = i + 1 < monthPositions.length ? monthPositions[i + 1].week : totalWeeks;
+      const span = nextPos - mp.week;
+      const cellWidth = 15;
+      monthsHtml += `<span class="heatmap-month-label" style="width: ${span * cellWidth}px; flex-shrink: 0;">${monthNames[mp.month]}</span>`;
+    });
+    monthsHtml += '</div>';
+
+    let rowsHtml = '<div class="heatmap-rows">';
+    for (let day = 0; day < 7; day++) {
+      rowsHtml += `<div class="heatmap-row"><span class="heatmap-day-label">${dayLabels[day]}</span><div class="heatmap-cells">`;
+      weeks.forEach(week => {
+        const cell = week[day] || { count: -1 };
+        if (cell.count === -1) {
+          rowsHtml += '<div class="heatmap-cell" style="background: transparent;"></div>';
+        } else {
+          let level = 0;
+          if (cell.count === 1) level = 1;
+          else if (cell.count === 2) level = 2;
+          else if (cell.count === 3) level = 3;
+          else if (cell.count >= 4) level = 4;
+          const title = cell.date ? `${cell.date}: ${cell.count}部` : '';
+          rowsHtml += `<div class="heatmap-cell level-${level}" title="${title}"></div>`;
+        }
+      });
+      rowsHtml += '</div></div>';
+    }
+    rowsHtml += '</div>';
+
+    const legendHtml = `
+      <div class="heatmap-legend">
+        <span>少</span>
+        <span class="heatmap-legend-cell" style="background: var(--secondary-bg);"></span>
+        <span class="heatmap-legend-cell level-1"></span>
+        <span class="heatmap-legend-cell level-2"></span>
+        <span class="heatmap-legend-cell level-3"></span>
+        <span class="heatmap-legend-cell level-4"></span>
+        <span>多</span>
+      </div>`;
+
+    container.innerHTML = monthsHtml + rowsHtml + legendHtml;
+  },
   updateBgInputsFromConfig() {
     // 更新单选框
     document.querySelectorAll('input[name="bg-type"]').forEach(radio => {
