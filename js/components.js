@@ -756,20 +756,30 @@ const Components = {
     const canvas = document.getElementById('radar-chart');
     if (!canvas) return;
 
+    const dpr = window.devicePixelRatio || 1;
+    const logicalW = 320;
+    const logicalH = 320;
+    canvas.width = logicalW * dpr;
+    canvas.height = logicalH * dpr;
+    canvas.style.width = logicalW + 'px';
+    canvas.style.height = logicalH + 'px';
+
     const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
     const entries = Object.entries(genreCounts);
     if (entries.length < 3) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, logicalW, logicalH);
       ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-light').trim() || '#636E72';
       ctx.font = '14px Noto Sans SC';
       ctx.textAlign = 'center';
-      ctx.fillText('需要至少3种类型才能显示雷达图', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('需要至少3种类型才能显示雷达图', logicalW / 2, logicalH / 2);
       return;
     }
 
     const maxCount = Math.max(...entries.map(e => e[1]), 1);
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
+    const cx = logicalW / 2;
+    const cy = logicalH / 2;
     const maxRadius = 110;
     const levels = 4;
     const angleStep = (2 * Math.PI) / entries.length;
@@ -963,7 +973,7 @@ const Components = {
     for (let i = 0; i < totalDays; i++) {
       const d = new Date(startDate);
       d.setDate(d.getDate() + i);
-      const key = d.toISOString().split('T')[0];
+      const key = toLocalDateStr(d);
       cells.push({
         date: key,
         count: dateCounts[key] || 0,
