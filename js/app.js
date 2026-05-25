@@ -39,6 +39,9 @@ const App = {
     // 获取云端设置
     await API.fetchCloudSettingsWithRetry(3);
     
+    // 应用云端主题
+    this.applyTheme(config.theme);
+    
     // 应用云端背景设置
     if (cloudSettings.bgImage || cloudSettings.bgGif || cloudSettings.bgVideo || cloudSettings.cardOpacity !== 100) {
       config.bgType = cloudSettings.bgType || 'image';
@@ -503,6 +506,7 @@ const App = {
     config.theme = theme;
     Utils.saveConfig();
     this.applyTheme(theme);
+    API.saveCloudSettings();
   },
 
   /**
@@ -1144,6 +1148,7 @@ const App = {
    */
   saveWishlist() {
     localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(appState.wishlist));
+    if (typeof API !== 'undefined') API.saveCloudSettings();
   },
 
   /**

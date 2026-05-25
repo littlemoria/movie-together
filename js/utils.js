@@ -154,6 +154,7 @@ const Utils = {
    */
   saveCustomGenres() {
     localStorage.setItem(Config.STORAGE_KEYS.GENRES, JSON.stringify(appState.customGenres));
+    if (typeof API !== 'undefined') API.saveCloudSettings();
   },
 
   /**

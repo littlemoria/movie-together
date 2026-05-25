@@ -334,6 +334,7 @@ const Components = {
 
   saveUnlockedAchievements() {
     localStorage.setItem(Config.STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(appState.unlockedAchievements));
+    if (typeof API !== 'undefined') API.saveCloudSettings();
   },
 
   loadUnlockedAchievements() {

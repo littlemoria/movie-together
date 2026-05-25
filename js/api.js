@@ -210,6 +210,22 @@ const API = {
         if (data && data.length > 0 && data[0].value) {
           const settings = JSON.parse(data[0].value);
           Object.assign(cloudSettings, settings);
+          if (settings.theme) {
+            config.theme = settings.theme;
+            localStorage.setItem(Config.STORAGE_KEYS.CONFIG, JSON.stringify(config));
+          }
+          if (settings.customGenres && settings.customGenres.length > 0) {
+            appState.customGenres = settings.customGenres;
+            localStorage.setItem(Config.STORAGE_KEYS.GENRES, JSON.stringify(settings.customGenres));
+          }
+          if (settings.wishlist && settings.wishlist.length > 0) {
+            appState.wishlist = settings.wishlist;
+            localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(settings.wishlist));
+          }
+          if (settings.unlockedAchievements && settings.unlockedAchievements.length > 0) {
+            appState.unlockedAchievements = settings.unlockedAchievements;
+            localStorage.setItem(Config.STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(settings.unlockedAchievements));
+          }
         }
       }
     } catch (err) {
@@ -218,7 +234,7 @@ const API = {
   },
 
   /**
-   * 保存云端设置
+   * 保存云端设置（统一序列化所有可同步状态）
    */
   async saveCloudSettings() {
     try {
@@ -228,10 +244,13 @@ const API = {
         bgGif: cloudSettings.bgGif,
         bgVideo: cloudSettings.bgVideo,
         bgMaskOpacity: cloudSettings.bgMaskOpacity,
-        cardOpacity: cloudSettings.cardOpacity
+        cardOpacity: cloudSettings.cardOpacity,
+        theme: config.theme,
+        customGenres: appState.customGenres,
+        wishlist: appState.wishlist,
+        unlockedAchievements: appState.unlockedAchievements
       });
       
-      // 检查是否存在
       const checkResponse = await fetch(
         `${Config.SUPABASE_URL}/rest/v1/settings?key=eq.global`,
         {
@@ -246,7 +265,6 @@ const API = {
       const existing = await checkResponse.json();
       
       if (existing && existing.length > 0) {
-        // 更新
         await fetch(
           `${Config.SUPABASE_URL}/rest/v1/settings?key=eq.global`,
           {
@@ -260,7 +278,6 @@ const API = {
           }
         );
       } else {
-        // 新增
         await fetch(
           `${Config.SUPABASE_URL}/rest/v1/settings`,
           {
