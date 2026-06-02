@@ -258,12 +258,21 @@ const App = {
     
     try {
       appState.movies = await API.fetchMovies();
+      // 确保所有电影都有 status 字段（兼容旧数据）
+      appState.movies = appState.movies.map(m => ({
+        ...m,
+        status: m.status || 'watched'
+      }));
     } catch (err) {
       console.error('加载数据失败:', err);
       const cached = localStorage.getItem(Config.STORAGE_KEYS.MOVIES);
       if (cached) {
         try {
           appState.movies = JSON.parse(cached);
+          appState.movies = appState.movies.map(m => ({
+            ...m,
+            status: m.status || 'watched'
+          }));
         } catch (e) {
           appState.movies = [];
         }
@@ -368,11 +377,21 @@ const App = {
       rating: rating,
       director: director,
       cast: cast,
-      tmdb_id: tmdbId
+      tmdb_id: tmdbId,
+      status: 'watched'
     };
     
     const id = document.getElementById('movie-id').value;
     const saved = await API.saveMovie(movieData, id || null);
+    
+    // 如果已看电影在"想看"列表中存在（通过 tmdb_id 匹配），自动清理重复数据
+    if (tmdbId) {
+      const wishlistDuplicate = appState.wishlist.find(w => w.tmdb_id === tmdbId);
+      if (wishlistDuplicate) {
+        appState.wishlist = appState.wishlist.filter(w => w.tmdb_id !== tmdbId);
+        this.saveWishlist();
+      }
+    }
     
     this.hideMovieModal();
     await this.loadMovies();
@@ -1159,9 +1178,17 @@ const App = {
     const movie = appState.currentTmdbResults[index];
     if (!movie) return;
 
-    const exists = appState.wishlist.find(w => w.tmdb_id === movie.id);
-    if (exists) {
+    // 检查是否已在想看列表
+    const existsInWishlist = appState.wishlist.find(w => w.tmdb_id === movie.id);
+    if (existsInWishlist) {
       Utils.showToast('已经在想看列表中', 'info');
+      return;
+    }
+
+    // 检查是否已在已看列表（防止重复添加）
+    const existsInMovies = appState.movies.find(m => m.tmdb_id === movie.id && m.status !== 'wishlist');
+    if (existsInMovies) {
+      Utils.showToast('这部电影已经在已看列表中', 'info');
       return;
     }
 
