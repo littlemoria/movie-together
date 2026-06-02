@@ -4,12 +4,15 @@
  */
 
 const Components = {
+  _cachedAchievementsVersion: -1,
+  _cachedStatsVersion: -1,
+
   /**
    * 渲染首页
    */
   renderHome() {
     // 仅统计"已看"状态的电影，排除"想看"状态
-    const watchedMovies = appState.movies.filter(m => m.status !== 'wishlist');
+    const watchedMovies = Utils.getWatchedMovies();
     const sorted = [...watchedMovies].sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
     const totalMinutes = Utils.getTotalMinutes(watchedMovies);
     
@@ -170,8 +173,7 @@ const Components = {
     const month = document.getElementById('month-filter').value;
     
     // 仅显示"已看"状态的电影，排除"想看"状态
-    let filtered = [...appState.movies]
-      .filter(m => m.status !== 'wishlist')
+    let filtered = [...Utils.getWatchedMovies()]
       .sort((a, b) => new Date(b.watch_date) - new Date(a.watch_date));
     
     if (search) {
@@ -210,7 +212,7 @@ const Components = {
    */
   renderWishlist() {
     const search = document.getElementById('search-input').value.toLowerCase();
-    let filtered = [...appState.wishlist];
+    let filtered = appState.movies.filter(m => m.status === 'wishlist');
 
     if (search) {
       filtered = filtered.filter(m => m.movie_name.toLowerCase().includes(search));
@@ -316,7 +318,7 @@ const Components = {
     const prevUnlocked = new Set(appState.unlockedAchievements);
     const newUnlocked = [];
 
-    const watchedMovies = appState.movies.filter(m => m.status !== 'wishlist');
+    const watchedMovies = Utils.getWatchedMovies();
     container.innerHTML = Config.ACHIEVEMENTS.map(achievement => {
       const unlocked = achievement.condition(watchedMovies);
       if (unlocked && !prevUnlocked.has(achievement.id)) {
@@ -433,8 +435,12 @@ const Components = {
    * 渲染统计页面
    */
   renderStats() {
+    // 数据未变则跳过昂贵的重绘（Canvas 图表）
+    if (this._cachedStatsVersion === appState._dataVersion) return;
+    this._cachedStatsVersion = appState._dataVersion;
+
     // 仅统计"已看"状态的电影
-    const watchedMovies = appState.movies.filter(m => m.status !== 'wishlist');
+    const watchedMovies = Utils.getWatchedMovies();
     const totalMinutes = Utils.getTotalMinutes(watchedMovies);
     
     document.getElementById('stat-total').textContent = watchedMovies.length;
@@ -521,7 +527,7 @@ const Components = {
     }
     
     container.innerHTML = entries.map(([genre, count], i) => {
-      const watchedTotal = appState.movies.filter(m => m.status !== 'wishlist').length;
+      const watchedTotal = Utils.getWatchedMovies().length;
       const percentage = watchedTotal ? Math.round(count / watchedTotal * 100) : 0;
       return `<div class="genre-item">
         <span class="genre-dot" style="background: ${Utils.getGenreColor(i)}"></span>
@@ -535,12 +541,13 @@ const Components = {
    * 渲染月度统计图
    */
   renderMonthlyChart() {
-    const watchedMovies = appState.movies.filter(m => m.status !== 'wishlist');
+    const watchedMovies = Utils.getWatchedMovies();
     const { monthKeys, monthLabels, monthlyCounts } = Utils.getMonthlyStats(watchedMovies);
     const maxCount = Math.max(...Object.values(monthlyCounts), 1);
     
     const container = document.getElementById('monthly-chart');
-    
+    if (!container) return;
+
     const moviesByMonth = {};
     watchedMovies.forEach(m => {
       const key = Utils.getMonthKey(m.watch_date);
@@ -573,7 +580,7 @@ const Components = {
    * @param {string} monthKey - 月份 key (YYYY-MM)
    */
   showMonthDetail(monthKey) {
-    const watchedMovies = appState.movies.filter(m => m.status !== 'wishlist');
+    const watchedMovies = Utils.getWatchedMovies();
     const movies = watchedMovies.filter(m => Utils.getMonthKey(m.watch_date) === monthKey);
     
     if (movies.length === 0) return;
@@ -671,14 +678,13 @@ const Components = {
       return;
     }
     
-    if (appState.movies.filter(m => m.status !== 'wishlist').length === 0) {
+    if (Utils.getWatchedMovies().length === 0) {
       return;
     }
     
     const currentYear = select.value;
     
-    const years = [...new Set(appState.movies
-      .filter(m => m.status !== 'wishlist')
+    const years = [...new Set(Utils.getWatchedMovies()
       .map(m => new Date(m.watch_date).getFullYear()))];
     years.sort((a, b) => b - a);
     
@@ -874,7 +880,7 @@ const Components = {
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    const watchedMovies = appState.movies.filter(m => m.status !== 'wishlist');
+    const watchedMovies = Utils.getWatchedMovies();
     const { monthKeys, monthLabels, monthlyCounts } = Utils.getMonthlyStats(watchedMovies, 12);
 
     const dpr = window.devicePixelRatio || 1;
@@ -963,7 +969,7 @@ const Components = {
     const container = document.getElementById('calendar-heatmap');
     if (!container) return;
 
-    const watchedMovies = appState.movies.filter(m => m.status !== 'wishlist');
+    const watchedMovies = Utils.getWatchedMovies();
     if (watchedMovies.length === 0) {
       container.innerHTML = '<p class="empty-state">暂无观影记录</p>';
       return;

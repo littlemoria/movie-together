@@ -128,7 +128,6 @@ let config = {
 // 全局状态
 let appState = {
   movies: [],
-  wishlist: [],
   isAdmin: false,
   customGenres: [],
   currentTrackIndex: -1,
@@ -138,7 +137,8 @@ let appState = {
   currentTmdbResults: [],
   selectedTmdbMovie: null,
   movieListMode: 'watched',
-  unlockedAchievements: []
+  unlockedAchievements: [],
+  _dataVersion: 0     // 数据版本号，用于缓存失效
 };
 
 // 云端设置

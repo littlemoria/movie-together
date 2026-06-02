@@ -5,6 +5,16 @@
 
 const Utils = {
   /**
+   * 获取所有"已看"状态的电影（排除"想看"）
+   * @param {Array} [movieList] - 电影列表，默认使用 appState.movies
+   * @returns {Array} 已看电影列表
+   */
+  getWatchedMovies(movieList) {
+    const source = movieList || appState.movies;
+    return source.filter(m => m.status !== 'wishlist');
+  },
+
+  /**
    * 计算电影总时长（分钟）
    * @param {Array} movieList - 电影列表
    * @returns {number} 总时长

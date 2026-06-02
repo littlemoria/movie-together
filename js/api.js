@@ -219,7 +219,7 @@ const API = {
             localStorage.setItem(Config.STORAGE_KEYS.GENRES, JSON.stringify(settings.customGenres));
           }
           if (settings.wishlist && settings.wishlist.length > 0) {
-            appState.wishlist = settings.wishlist;
+            // 保存到 localStorage，由 loadMovies() 统一合并到 movies 数组
             localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(settings.wishlist));
           }
           if (settings.unlockedAchievements && settings.unlockedAchievements.length > 0) {
@@ -247,7 +247,12 @@ const API = {
         cardOpacity: cloudSettings.cardOpacity,
         theme: config.theme,
         customGenres: appState.customGenres,
-        wishlist: appState.wishlist,
+        wishlist: appState.movies
+          .filter(m => m.status === 'wishlist')
+          .map(m => ({
+            id: m.id, movie_name: m.movie_name, tmdb_id: m.tmdb_id,
+            poster_path: m.poster_path, year: m.year, rating: m.rating, added_at: m.added_at
+          })),
         unlockedAchievements: appState.unlockedAchievements
       });
       

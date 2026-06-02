@@ -34,7 +34,6 @@ const App = {
     Components.applyOpacitySettings();
     
     Components.loadUnlockedAchievements();
-    this.loadWishlist();
     
     // 获取云端设置
     await API.fetchCloudSettingsWithRetry(3);
@@ -278,6 +277,32 @@ const App = {
         }
       }
     }
+
+    // 加载 Wish List 并合并到 movies（统一数据源，status='wishlist'）
+    const savedWishlist = localStorage.getItem(Config.STORAGE_KEYS.WISHLIST);
+    if (savedWishlist) {
+      try {
+        const wishlistItems = JSON.parse(savedWishlist);
+        wishlistItems.forEach(w => {
+          // 避免重复：如果 tmdb_id 已在 movies 中存在（已看），跳过
+          if (w.tmdb_id && appState.movies.find(m => m.tmdb_id === w.tmdb_id && m.status !== 'wishlist')) {
+            return;
+          }
+          appState.movies.push({
+            ...w,
+            watch_date: w.added_at ? w.added_at.split('T')[0] : new Date().toISOString().split('T')[0],
+            duration_minutes: null,
+            genre: '',
+            created_by: '',
+            director: '',
+            cast: '',
+            status: 'wishlist'
+          });
+        });
+      } catch (e) { /* ignore parse errors */ }
+    }
+
+    appState._dataVersion++;
   },
 
   /**
@@ -341,6 +366,28 @@ const App = {
   async handleMovieSubmit(e) {
     e.preventDefault();
     
+    // 表单校验
+    const movieName = document.getElementById('movie-name').value.trim();
+    const watchDate = document.getElementById('watch-date').value;
+    const durationInput = document.getElementById('duration').value.trim();
+    const durationMinutes = parseInt(durationInput) || null;
+    
+    if (!movieName) {
+      Utils.showToast('请输入电影名称', 'error');
+      return;
+    }
+    if (!watchDate) {
+      Utils.showToast('请选择观影日期', 'error');
+      return;
+    }
+    if (durationInput && (isNaN(parseInt(durationInput)) || durationMinutes <= 0)) {
+      Utils.showToast('时长请输入有效的正数（分钟）', 'error');
+      return;
+    }
+    if (durationMinutes !== null && durationMinutes > 600) {
+      Utils.showToast('时长过长（超过600分钟），请确认输入正确', 'warning');
+    }
+    
     // 获取选中的类型
     const genres = [];
     document.querySelectorAll('input[name="genre"]:checked').forEach(cb => {
@@ -368,9 +415,9 @@ const App = {
     }
     
     const movieData = {
-      movie_name: document.getElementById('movie-name').value,
-      watch_date: document.getElementById('watch-date').value,
-      duration_minutes: parseInt(document.getElementById('duration').value) || null,
+      movie_name: movieName,
+      watch_date: watchDate,
+      duration_minutes: durationMinutes,
       genre: genres.join(','),
       created_by: document.getElementById('created-by').value || 'TA',
       poster_path: posterPath,
@@ -386,16 +433,16 @@ const App = {
     
     // 如果已看电影在"想看"列表中存在（通过 tmdb_id 匹配），自动清理重复数据
     if (tmdbId) {
-      const wishlistDuplicate = appState.wishlist.find(w => w.tmdb_id === tmdbId);
+      const wishlistDuplicate = appState.movies.find(m => m.tmdb_id === tmdbId && m.status === 'wishlist');
       if (wishlistDuplicate) {
-        appState.wishlist = appState.wishlist.filter(w => w.tmdb_id !== tmdbId);
+        appState.movies = appState.movies.filter(m => m.id !== wishlistDuplicate.id);
         this.saveWishlist();
       }
     }
     
     this.hideMovieModal();
-    await this.loadMovies();
-    
+    appState._dataVersion++;
+    // appState.movies 已由 API.saveMovie 更新，直接渲染即可，无需重新加载
     Components.renderHome();
     Components.renderMovies();
     Components.renderAchievements();
@@ -427,6 +474,7 @@ const App = {
     appState.movies = appState.movies.filter(m => m.id != id);
     this.hideMovieModal();
 
+    appState._dataVersion++;
     Components.renderHome();
     Components.renderMovies();
     Components.renderAchievements();
@@ -444,6 +492,7 @@ const App = {
 
         await API.saveMovie(deletedMovie, id);
 
+        appState._dataVersion++;
         Components.renderHome();
         Components.renderMovies();
         Components.renderAchievements();
@@ -1153,21 +1202,23 @@ const App = {
   },
 
   /**
-   * 加载 Wish List
-   */
-  loadWishlist() {
-    const saved = localStorage.getItem(Config.STORAGE_KEYS.WISHLIST);
-    if (saved) {
-      try { appState.wishlist = JSON.parse(saved); } catch (e) { appState.wishlist = []; }
-    }
-  },
-
-  /**
-   * 保存 Wish List
+   * 保存 Wish List（从 movies 统一数组提取，写入 localStorage + 云端）
    */
   saveWishlist() {
-    localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(appState.wishlist));
+    const wishlistItems = appState.movies
+      .filter(m => m.status === 'wishlist')
+      .map(m => ({
+        id: m.id,
+        movie_name: m.movie_name,
+        tmdb_id: m.tmdb_id,
+        poster_path: m.poster_path,
+        year: m.year,
+        rating: m.rating,
+        added_at: m.added_at
+      }));
+    localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(wishlistItems));
     if (typeof API !== 'undefined') API.saveCloudSettings();
+    appState._dataVersion++;
   },
 
   /**
@@ -1178,8 +1229,8 @@ const App = {
     const movie = appState.currentTmdbResults[index];
     if (!movie) return;
 
-    // 检查是否已在想看列表
-    const existsInWishlist = appState.wishlist.find(w => w.tmdb_id === movie.id);
+    // 检查是否已在想看列表（统一在 movies 中查找）
+    const existsInWishlist = appState.movies.find(m => m.tmdb_id === movie.id && m.status === 'wishlist');
     if (existsInWishlist) {
       Utils.showToast('已经在想看列表中', 'info');
       return;
@@ -1199,10 +1250,17 @@ const App = {
       poster_path: movie.poster_path || null,
       year: movie.release_date ? movie.release_date.split('-')[0] : '',
       rating: movie.vote_average ? Math.round(movie.vote_average * 10) / 10 : null,
-      added_at: new Date().toISOString()
+      added_at: new Date().toISOString(),
+      watch_date: new Date().toISOString().split('T')[0],
+      duration_minutes: null,
+      genre: '',
+      created_by: '',
+      director: '',
+      cast: '',
+      status: 'wishlist'
     };
 
-    appState.wishlist.push(item);
+    appState.movies.push(item);
     this.saveWishlist();
     Utils.showToast(`「${item.movie_name}」已加入想看`, 'success');
   },
@@ -1212,18 +1270,12 @@ const App = {
    * @param {string} id - Wish List 项 ID
    */
   wishlistToWatched(id) {
-    const item = appState.wishlist.find(w => w.id === id);
+    const item = appState.movies.find(m => m.id === id && m.status === 'wishlist');
     if (!item) return;
 
-    appState.wishlist = appState.wishlist.filter(w => w.id !== id);
+    // 从 movies 中移除（会由 handleMovieSubmit 以 status='watched' 重新添加）
+    appState.movies = appState.movies.filter(m => m.id !== id);
     this.saveWishlist();
-
-    const tempMovie = {
-      movie_name: item.movie_name,
-      tmdb_id: item.tmdb_id,
-      poster_path: item.poster_path,
-      rating: item.rating
-    };
 
     if (item.tmdb_id) {
       appState.selectedTmdbMovie = {
@@ -1245,8 +1297,8 @@ const App = {
    * @param {string} id - Wish List 项 ID
    */
   removeFromWishlist(id) {
-    const item = appState.wishlist.find(w => w.id === id);
-    appState.wishlist = appState.wishlist.filter(w => w.id !== id);
+    const item = appState.movies.find(m => m.id === id && m.status === 'wishlist');
+    appState.movies = appState.movies.filter(m => m.id !== id);
     this.saveWishlist();
     Components.renderMovies();
     if (item) {
