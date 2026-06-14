@@ -97,11 +97,26 @@ const API = {
         },
         body
       });
-      
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        // 读取 Supabase 返回的详细错误信息
+        let errorDetail = '';
+        try {
+          const errorBody = await response.json();
+          errorDetail = JSON.stringify(errorBody);
+        } catch (e) {
+          errorDetail = await response.text().catch(() => '(无法读取响应)');
+        }
+        console.error('Supabase 请求失败:', {
+          status: response.status,
+          method,
+          url,
+          requestBody: body,
+          error: errorDetail
+        });
+        throw new Error(`HTTP ${response.status}: ${errorDetail}`);
       }
-      
+
       if (id) {
         const idx = appState.movies.findIndex(m => m.id === id);
         if (idx >= 0) {
