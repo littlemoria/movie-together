@@ -423,7 +423,7 @@ const App = {
     
     if (appState.selectedTmdbMovie) {
       posterPath = appState.selectedTmdbMovie.poster_path;
-      rating = appState.selectedTmdbMovie.vote_average ? Math.round(appState.selectedTmdbMovie.vote_average * 10) / 10 : null;
+      rating = appState.selectedTmdbMovie.vote_average ? Math.round(appState.selectedTmdbMovie.vote_average) : null;
       tmdbId = appState.selectedTmdbMovie.id;
       
       // 获取导演和主演
