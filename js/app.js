@@ -902,71 +902,115 @@ const App = {
   handleImportFile(e) {
     const file = e.target.files[0];
     if (!file) return;
-    
+
+    // 管理员权限校验
+    if (!appState.isAdmin) {
+      Utils.showToast('请先登录后再导入数据\n\n点击右上角「设置」进行登录', 'info');
+      this.showSettings();
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target.result;
       const imported = this.parseCSV(text);
-      
-      if (imported.length > 0) {
-        const mode = await Utils.confirm(`检测到 ${imported.length} 条记录。\n\n点击"确定"追加到现有记录\n点击"取消"替换所有记录`);
-        
-        if (mode) {
-          // 追加：添加 ID（使用临时 ID）
-          imported.forEach((movie, idx) => {
-            movie.id = 'temp_' + Date.now() + '_' + idx;
-            movie.created_at = new Date().toISOString();
-            movie.updated_at = new Date().toISOString();
-          });
-          appState.movies = [...appState.movies, ...imported];
-        } else {
-          // 替换：先删除云端现有数据，再导入新数据
-          try {
-            Utils.showToast('正在清空云端数据...', 'info');
-            // 获取云端所有电影的 ID
-            const cloudMovies = await API.fetchMovies();
-            // 逐个删除云端电影（更可靠）
-            for (const movie of cloudMovies) {
-              await API.deleteMovie(movie.id);
-            }
-            // 清空本地缓存
-            if (typeof Cache !== 'undefined') {
-              await Cache.clearMovies();
-            }
-            Utils.showToast('已清空云端数据', 'success');
-          } catch (err) {
-            console.error('清空云端数据失败:', err);
-            Utils.showToast('清空云端数据失败，将仅覆盖本地数据', 'warning');
-          }
-          
-          // 添加导入的数据
-          imported.forEach((movie, idx) => {
-            movie.id = 'temp_' + Date.now() + '_' + idx;
-            movie.created_at = new Date().toISOString();
-            movie.updated_at = new Date().toISOString();
-          });
-          appState.movies = imported;
-        }
-        
-        localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(appState.movies));
-        
-        // 同步到云端
-        for (const movie of imported) {
-          await API.saveMovie(movie);
-        }
-        
-        Components.renderHome();
-        Components.renderMovies();
-        Components.renderAchievements();
-        Components.renderStats();
-        
-        Utils.showToast(`成功导入 ${imported.length} 条记录`, 'success');
-      } else {
+
+      if (imported.length === 0) {
         Utils.showToast('未能解析文件，请检查 CSV 格式', 'error');
+        return;
       }
+
+      // 第一步：选择导入模式
+      const mode = await Utils.confirm({
+        message: `检测到 ${imported.length} 条记录。\n\n请选择导入方式：`,
+        confirmText: '追加到现有记录',
+        cancelText: '替换所有记录',
+      });
+
+      if (mode) {
+        // === 追加模式 ===
+        Utils.showToast(`正在追加 ${imported.length} 条记录...`, 'info');
+        for (const movie of imported) {
+          const { id: _tempId, ...movieData } = movie;
+          movieData.created_at = new Date().toISOString();
+          movieData.updated_at = new Date().toISOString();
+          await API.saveMovie(movieData, null, { prepend: false });
+        }
+      } else {
+        // === 替换模式 ===
+        // 第二步：二次确认（破坏性操作必须再次确认）
+        const confirmed = await Utils.confirm({
+          message: `⚠️ 警告：替换将永久删除所有 ${appState.movies.length} 条现有观影记录！\n\n此操作不可撤销，确定继续吗？`,
+          confirmText: '确定替换，删除所有现有记录',
+          cancelText: '取消',
+          danger: true,
+        });
+        if (!confirmed) return;
+
+        Utils.showToast(`正在替换导入 ${imported.length} 条记录...`, 'info');
+
+        // Step 1: 先保存新电影到云端（保证数据不丢失）
+        appState.movies = [];
+        let saveFailed = false;
+        for (const movie of imported) {
+          const { id: _tempId, ...movieData } = movie;
+          movieData.created_at = new Date().toISOString();
+          movieData.updated_at = new Date().toISOString();
+          const ok = await API.saveMovie(movieData, null, { prepend: false });
+          if (!ok) saveFailed = true;
+        }
+
+        if (saveFailed) {
+          Utils.showToast('部分记录保存到云端失败，已保存到本地', 'warning');
+        }
+
+        // Step 2: 删除旧的云端电影（排除刚保存的新电影）
+        try {
+          // 新电影 ID 为云端生成的 UUID（字符串），排除本地回退的数值 ID
+          const newIds = new Set(appState.movies.map(m => m.id).filter(id => typeof id !== 'number'));
+          const cloudMovies = await API.fetchMovies();
+          let deletedCount = 0;
+          for (const movie of cloudMovies) {
+            if (!newIds.has(movie.id)) {
+              await API.deleteMovie(movie.id);
+              deletedCount++;
+            }
+          }
+          if (deletedCount > 0) {
+            Utils.showToast(`已清理 ${deletedCount} 条旧记录`, 'info');
+          }
+        } catch (err) {
+          console.error('清理旧数据失败:', err);
+          Utils.showToast('清理旧云端数据时出错，请手动检查云端是否有残留旧记录', 'warning');
+        }
+
+        // Step 3: 清除缓存并重新缓存新数据
+        if (typeof Cache !== 'undefined') {
+          await Cache.clearMovies();
+          await Cache.saveMovies(appState.movies);
+        }
+      }
+
+      // 统一后续处理
+      localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(appState.movies));
+
+      Components.renderHome();
+      Components.renderMovies();
+      Components.renderAchievements();
+      Components.renderStats();
+
+      Utils.showToast(`成功导入 ${imported.length} 条记录`, 'success');
     };
-    
+
+    reader.onerror = () => {
+      Utils.showToast('文件读取失败，请重试', 'error');
+    };
+
     reader.readAsText(file);
+
+    // 清理 file input，允许重复选择同一文件
+    e.target.value = '';
   },
 
   /**

@@ -749,6 +749,34 @@ body {
   color: var(--text);
 }
 
+/* ============================================
+   自定义确认弹窗
+   ============================================ */
+.confirm-dialog {
+  max-width: 380px;
+  text-align: center;
+  padding: 28px 24px;
+}
+
+.confirm-message {
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0 0 24px 0;
+  color: var(--text);
+  white-space: pre-line;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.confirm-buttons button {
+  min-width: 100px;
+  padding: 10px 20px;
+}
+
 .form-group {
   margin-bottom: 16px;
 }

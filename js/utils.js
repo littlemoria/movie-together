@@ -214,14 +214,54 @@ const Utils = {
   },
 
   /**
-   * 确认对话框（替代 confirm）
-   * @param {string} message - 确认消息
+   * 确认对话框（自定义弹窗，替代浏览器原生 confirm）
+   * @param {string|Object} messageOrOptions - 确认消息字符串，或配置对象
+   * @param {string} [messageOrOptions.message] - 确认消息
+   * @param {string} [messageOrOptions.confirmText='确定'] - 确认按钮文字
+   * @param {string} [messageOrOptions.cancelText='取消'] - 取消按钮文字
+   * @param {boolean} [messageOrOptions.danger=false] - 确认按钮是否使用危险样式（红色）
    * @returns {Promise<boolean>}
    */
-  async confirm(message) {
+  async confirm(messageOrOptions) {
+    const opts = typeof messageOrOptions === 'string'
+      ? { message: messageOrOptions }
+      : messageOrOptions;
+    const { message, confirmText = '确定', cancelText = '取消', danger = false } = opts;
+
     return new Promise(resolve => {
-      const confirmed = window.confirm(message);
-      resolve(confirmed);
+      const modal = document.createElement('div');
+      modal.className = 'modal confirm-modal active';
+      modal.innerHTML = `
+        <div class="modal-content confirm-dialog">
+          <p class="confirm-message">${message.replace(/\n/g, '<br>')}</p>
+          <div class="confirm-buttons">
+            <button class="btn-secondary confirm-cancel">${cancelText}</button>
+            <button class="${danger ? 'btn-danger' : 'btn-primary'} confirm-ok">${confirmText}</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      const cleanup = (result) => {
+        modal.classList.remove('active');
+        setTimeout(() => modal.remove(), 200);
+        resolve(result);
+      };
+
+      modal.querySelector('.confirm-cancel').onclick = () => cleanup(false);
+      modal.querySelector('.confirm-ok').onclick = () => cleanup(true);
+      // 点击遮罩关闭
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) cleanup(false);
+      });
+      // ESC 键关闭
+      const onKeydown = (e) => {
+        if (e.key === 'Escape') {
+          document.removeEventListener('keydown', onKeydown);
+          cleanup(false);
+        }
+      };
+      document.addEventListener('keydown', onKeydown);
     });
   },
 

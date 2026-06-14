@@ -61,7 +61,8 @@ const API = {
     }
   },
 
-  async saveMovie(movieData, id = null) {
+  async saveMovie(movieData, id = null, options = {}) {
+    const { prepend = true } = options;
     if (!navigator.onLine && typeof Sync !== 'undefined') {
       console.log('[API] Offline, saving to sync queue');
       if (id) {
@@ -81,7 +82,9 @@ const API = {
       } else {
         url = `${Config.SUPABASE_URL}/rest/v1/movies`;
         method = 'POST';
-        body = JSON.stringify(movieData);
+        // 删除临时 ID（如 'temp_...'），让 Supabase 自动生成 UUID
+        const { id: _tempId, ...dataWithoutId } = movieData;
+        body = JSON.stringify(dataWithoutId);
       }
       
       const response = await fetch(url, {
@@ -111,8 +114,12 @@ const API = {
       } else {
         const newMovie = await response.json();
         if (newMovie && newMovie.length > 0) {
-          appState.movies.unshift(newMovie[0]);
-          
+          if (prepend) {
+            appState.movies.unshift(newMovie[0]);
+          } else {
+            appState.movies.push(newMovie[0]);
+          }
+
           if (typeof Cache !== 'undefined') {
             await Cache.saveMovies([newMovie[0]]);
           }
@@ -120,8 +127,12 @@ const API = {
           // Supabase 请求成功但未返回 representation，使用本地数据
           movieData.id = Date.now();
           movieData.created_at = new Date().toISOString();
-          appState.movies.unshift(movieData);
-          
+          if (prepend) {
+            appState.movies.unshift(movieData);
+          } else {
+            appState.movies.push(movieData);
+          }
+
           if (typeof Cache !== 'undefined') {
             await Cache.saveMovies([movieData]);
           }
@@ -140,7 +151,11 @@ const API = {
         if (idx >= 0) appState.movies[idx] = { ...appState.movies[idx], ...movieData };
       } else {
         movieData.id = Date.now();
-        appState.movies.unshift(movieData);
+        if (prepend) {
+          appState.movies.unshift(movieData);
+        } else {
+          appState.movies.push(movieData);
+        }
       }
       localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(appState.movies));
       
