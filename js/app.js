@@ -933,8 +933,8 @@ const App = {
         Utils.showToast(`正在追加 ${imported.length} 条记录...`, 'info');
         for (const movie of imported) {
           const { id: _tempId, ...movieData } = movie;
-          movieData.created_at = new Date().toISOString();
-          movieData.updated_at = new Date().toISOString();
+          // 不发送 created_at / updated_at，由 Supabase 默认值处理
+          // （手动添加也不发这些字段，保持一致，避免未知列错误）
           await API.saveMovie(movieData, null, { prepend: false });
         }
       } else {
@@ -964,8 +964,8 @@ const App = {
         let saveFailed = false;
         for (const movie of imported) {
           const { id: _tempId, ...movieData } = movie;
-          movieData.created_at = new Date().toISOString();
-          movieData.updated_at = new Date().toISOString();
+          // 不发送 created_at / updated_at，由 Supabase 默认值处理
+          // （手动添加也不发这些字段，保持一致，避免未知列错误）
           const ok = await API.saveMovie(movieData, null, { prepend: false });
           if (!ok) saveFailed = true;
         }
