@@ -950,6 +950,15 @@ const App = {
 
         Utils.showToast(`正在替换导入 ${imported.length} 条记录...`, 'info');
 
+        // Step 0: 保存旧电影 ID（用于后续精准删除）
+        let oldMovieIds = new Set();
+        try {
+          const preCloudMovies = await API.fetchMovies();
+          oldMovieIds = new Set(preCloudMovies.map(m => m.id));
+        } catch (err) {
+          console.error('获取旧电影列表失败:', err);
+        }
+
         // Step 1: 先保存新电影到云端（保证数据不丢失）
         appState.movies = [];
         let saveFailed = false;
@@ -961,31 +970,46 @@ const App = {
           if (!ok) saveFailed = true;
         }
 
-        if (saveFailed) {
-          Utils.showToast('部分记录保存到云端失败，已保存到本地', 'warning');
-        }
-
-        // Step 2: 删除旧的云端电影（排除刚保存的新电影）
+        // Step 2: 从云端获取最新数据，通过 ID 对比区分新旧
         try {
-          // 新电影 ID 为云端生成的 UUID（字符串），排除本地回退的数值 ID
-          const newIds = new Set(appState.movies.map(m => m.id).filter(id => typeof id !== 'number'));
-          const cloudMovies = await API.fetchMovies();
-          let deletedCount = 0;
-          for (const movie of cloudMovies) {
-            if (!newIds.has(movie.id)) {
+          const allCloudMovies = await API.fetchMovies();
+
+          // 新电影：不在旧 ID 集合中
+          const newCloudMovies = allCloudMovies.filter(m => !oldMovieIds.has(m.id));
+          // 旧电影：在旧 ID 集合中（需要删除）
+          const oldCloudMovies = allCloudMovies.filter(m => oldMovieIds.has(m.id));
+
+          // 安全阀：如果没有成功保存任何新记录到云端，跳过删除旧数据
+          if (newCloudMovies.length === 0 && saveFailed) {
+            Utils.showToast('所有记录均未能保存到云端，已取消删除旧数据', 'error');
+            // 恢复本地数据
+            appState.movies = [...appState.movies];
+          } else {
+            // 删除旧电影
+            for (const movie of oldCloudMovies) {
               await API.deleteMovie(movie.id);
-              deletedCount++;
             }
+
+            if (oldCloudMovies.length > 0) {
+              Utils.showToast(`已清理 ${oldCloudMovies.length} 条旧记录`, 'info');
+            }
+
+            // 保留本地回退数据（保存到云端失败但已存本地的电影，其 ID 为数字）
+            const localFallback = appState.movies.filter(m => typeof m.id === 'number');
+
+            // 以云端数据为权威状态，补上本地回退
+            appState.movies = [...newCloudMovies, ...localFallback];
           }
-          if (deletedCount > 0) {
-            Utils.showToast(`已清理 ${deletedCount} 条旧记录`, 'info');
+
+          if (saveFailed && newCloudMovies.length > 0) {
+            Utils.showToast('部分记录仅保存到本地，未能同步到云端', 'warning');
           }
         } catch (err) {
-          console.error('清理旧数据失败:', err);
-          Utils.showToast('清理旧云端数据时出错，请手动检查云端是否有残留旧记录', 'warning');
+          console.error('同步云端数据失败:', err);
+          Utils.showToast('同步云端数据时出错，请刷新页面检查云端是否有残留旧记录', 'warning');
         }
 
-        // Step 3: 清除缓存并重新缓存新数据
+        // Step 3: 更新缓存
         if (typeof Cache !== 'undefined') {
           await Cache.clearMovies();
           await Cache.saveMovies(appState.movies);
