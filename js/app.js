@@ -248,32 +248,52 @@ const App = {
    * 加载电影数据
    */
   async loadMovies() {
+    let cachedMovies = [];
     if (typeof Sync !== 'undefined') {
       const cached = await Sync.loadFromCache();
       if (cached && cached.length > 0) {
+        cachedMovies = cached;
         Components.renderHome();
       }
     }
     
     try {
-      appState.movies = await API.fetchMovies();
+      const cloudMovies = await API.fetchMovies();
       // 确保所有电影都有 status 字段（兼容旧数据）
-      appState.movies = appState.movies.map(m => ({
+      appState.movies = cloudMovies.map(m => ({
         ...m,
         status: m.status || 'watched'
       }));
+      
+      // 合并本地缓存中云端没有的电影（临时ID或_pending标记的本地电影）
+      const cloudIds = new Set(cloudMovies.map(m => m.id));
+      const localOnlyMovies = cachedMovies.filter(m => 
+        !cloudIds.has(m.id) && (m.id.toString().startsWith('temp_') || m._pending)
+      );
+      if (localOnlyMovies.length > 0) {
+        console.log('[App] Merging', localOnlyMovies.length, 'local-only movies');
+        appState.movies = [...localOnlyMovies, ...appState.movies];
+      }
     } catch (err) {
       console.error('加载数据失败:', err);
-      const cached = localStorage.getItem(Config.STORAGE_KEYS.MOVIES);
-      if (cached) {
-        try {
-          appState.movies = JSON.parse(cached);
-          appState.movies = appState.movies.map(m => ({
-            ...m,
-            status: m.status || 'watched'
-          }));
-        } catch (e) {
-          appState.movies = [];
+      // 使用缓存数据
+      if (cachedMovies.length > 0) {
+        appState.movies = cachedMovies.map(m => ({
+          ...m,
+          status: m.status || 'watched'
+        }));
+      } else {
+        const cached = localStorage.getItem(Config.STORAGE_KEYS.MOVIES);
+        if (cached) {
+          try {
+            appState.movies = JSON.parse(cached);
+            appState.movies = appState.movies.map(m => ({
+              ...m,
+              status: m.status || 'watched'
+            }));
+          } catch (e) {
+            appState.movies = [];
+          }
         }
       }
     }
@@ -892,10 +912,38 @@ const App = {
         const mode = await Utils.confirm(`检测到 ${imported.length} 条记录。\n\n点击"确定"追加到现有记录\n点击"取消"替换所有记录`);
         
         if (mode) {
-          // 追加
+          // 追加：添加 ID（使用临时 ID）
+          imported.forEach((movie, idx) => {
+            movie.id = 'temp_' + Date.now() + '_' + idx;
+            movie.created_at = new Date().toISOString();
+            movie.updated_at = new Date().toISOString();
+          });
           appState.movies = [...appState.movies, ...imported];
         } else {
-          // 替换
+          // 替换：先清空云端数据
+          try {
+            // 删除云端所有电影
+            await fetch(`${Config.SUPABASE_URL}/rest/v1/movies`, {
+              method: 'DELETE',
+              headers: {
+                'apikey': Config.SUPABASE_KEY,
+                'Authorization': `Bearer ${Config.SUPABASE_KEY}`
+              }
+            });
+            // 清空本地缓存
+            if (typeof Cache !== 'undefined') {
+              await Cache.clearMovies();
+            }
+          } catch (err) {
+            console.error('清空云端数据失败:', err);
+          }
+          
+          // 添加导入的数据
+          imported.forEach((movie, idx) => {
+            movie.id = 'temp_' + Date.now() + '_' + idx;
+            movie.created_at = new Date().toISOString();
+            movie.updated_at = new Date().toISOString();
+          });
           appState.movies = imported;
         }
         

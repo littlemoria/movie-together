@@ -116,6 +116,15 @@ const API = {
           if (typeof Cache !== 'undefined') {
             await Cache.saveMovies([newMovie[0]]);
           }
+        } else {
+          // Supabase 请求成功但未返回 representation，使用本地数据
+          movieData.id = Date.now();
+          movieData.created_at = new Date().toISOString();
+          appState.movies.unshift(movieData);
+          
+          if (typeof Cache !== 'undefined') {
+            await Cache.saveMovies([movieData]);
+          }
         }
       }
       
