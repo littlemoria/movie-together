@@ -46,11 +46,11 @@ TO authenticated
 USING (true)
 WITH CHECK (true);
 
--- 策略 4: 允许删除电影（仅限管理员或记录创建者）
-CREATE POLICY "允许删除电影"
+-- 策略 4: 允许删除电影（允许公开删除）
+CREATE POLICY "允许公开删除电影"
 ON movies
 FOR DELETE
-TO authenticated
+TO anon, authenticated
 USING (true);
 
 -- ============================================
