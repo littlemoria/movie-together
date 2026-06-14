@@ -920,22 +920,23 @@ const App = {
           });
           appState.movies = [...appState.movies, ...imported];
         } else {
-          // 替换：先清空云端数据
+          // 替换：先删除云端现有数据，再导入新数据
           try {
-            // 删除云端所有电影
-            await fetch(`${Config.SUPABASE_URL}/rest/v1/movies`, {
-              method: 'DELETE',
-              headers: {
-                'apikey': Config.SUPABASE_KEY,
-                'Authorization': `Bearer ${Config.SUPABASE_KEY}`
-              }
-            });
+            Utils.showToast('正在清空云端数据...', 'info');
+            // 获取云端所有电影的 ID
+            const cloudMovies = await API.fetchMovies();
+            // 逐个删除云端电影（更可靠）
+            for (const movie of cloudMovies) {
+              await API.deleteMovie(movie.id);
+            }
             // 清空本地缓存
             if (typeof Cache !== 'undefined') {
               await Cache.clearMovies();
             }
+            Utils.showToast('已清空云端数据', 'success');
           } catch (err) {
             console.error('清空云端数据失败:', err);
+            Utils.showToast('清空云端数据失败，将仅覆盖本地数据', 'warning');
           }
           
           // 添加导入的数据
