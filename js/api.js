@@ -404,6 +404,32 @@ const API = {
   },
 
   /**
+   * 根据电影名称从 TMDB 获取海报和元数据
+   * 仅返回 poster_path / rating / tmdb_id，不覆盖 CSV 中已有的 genre 等字段
+   * @param {string} movieName - 电影名称
+   * @returns {Object|null} { poster_path, rating, tmdb_id } 或 null
+   */
+  async enrichMovieFromTmdb(movieName) {
+    try {
+      const results = await this.searchTmdb(movieName);
+      if (!results || results.length === 0) return null;
+
+      const bestMatch = results[0];
+      // 加 200ms 延迟避免 TMDB API 频率限制
+      await new Promise(r => setTimeout(r, 200));
+
+      return {
+        poster_path: bestMatch.poster_path || null,
+        rating: bestMatch.vote_average ? Math.round(bestMatch.vote_average) : null,
+        tmdb_id: bestMatch.id || null
+      };
+    } catch (err) {
+      console.error('TMDB 丰富电影信息失败:', movieName, err);
+      return null;
+    }
+  },
+
+  /**
    * 带重试的云端设置获取
    */
   async fetchCloudSettingsWithRetry(retryCount = 3) {

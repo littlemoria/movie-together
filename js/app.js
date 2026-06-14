@@ -929,12 +929,27 @@ const App = {
 
       if (mode) {
         // === 追加模式 ===
-        Utils.showToast(`正在追加 ${imported.length} 条记录...`, 'info');
-        for (const movie of imported) {
+        Utils.showToast(`正在导入并获取封面... 0/${imported.length}`, 'info');
+        for (let i = 0; i < imported.length; i++) {
+          const movie = imported[i];
           const { id: _tempId, ...movieData } = movie;
+
+          // 尝试从 TMDB 获取海报封面和评分（不覆盖 CSV 中已有的 genre 等字段）
+          if (!movieData.poster_path) {
+            const tmdbData = await API.enrichMovieFromTmdb(movieData.movie_name);
+            if (tmdbData) {
+              Object.assign(movieData, tmdbData);
+            }
+          }
+
           // 不发送 created_at / updated_at，由 Supabase 默认值处理
           // （手动添加也不发这些字段，保持一致，避免未知列错误）
           await API.saveMovie(movieData, null, { prepend: false });
+
+          // 每 5 条更新一次进度
+          if ((i + 1) % 5 === 0 || i === imported.length - 1) {
+            Utils.showToast(`正在导入并获取封面... ${i + 1}/${imported.length}`, 'info');
+          }
         }
       } else {
         // === 替换模式 ===
@@ -947,7 +962,7 @@ const App = {
         });
         if (!confirmed) return;
 
-        Utils.showToast(`正在替换导入 ${imported.length} 条记录...`, 'info');
+        Utils.showToast(`正在替换导入并获取封面... 0/${imported.length}`, 'info');
 
         // Step 0: 保存旧电影 ID（用于后续精准删除）
         let oldMovieIds = new Set();
@@ -961,12 +976,27 @@ const App = {
         // Step 1: 先保存新电影到云端（保证数据不丢失）
         appState.movies = [];
         let saveFailed = false;
-        for (const movie of imported) {
+        for (let i = 0; i < imported.length; i++) {
+          const movie = imported[i];
           const { id: _tempId, ...movieData } = movie;
+
+          // 尝试从 TMDB 获取海报封面和评分（不覆盖 CSV 中已有的 genre 等字段）
+          if (!movieData.poster_path) {
+            const tmdbData = await API.enrichMovieFromTmdb(movieData.movie_name);
+            if (tmdbData) {
+              Object.assign(movieData, tmdbData);
+            }
+          }
+
           // 不发送 created_at / updated_at，由 Supabase 默认值处理
           // （手动添加也不发这些字段，保持一致，避免未知列错误）
           const ok = await API.saveMovie(movieData, null, { prepend: false });
           if (!ok) saveFailed = true;
+
+          // 每 5 条更新一次进度
+          if ((i + 1) % 5 === 0 || i === imported.length - 1) {
+            Utils.showToast(`正在替换导入并获取封面... ${i + 1}/${imported.length}`, 'info');
+          }
         }
 
         // Step 2: 从云端获取最新数据，通过 ID 对比区分新旧
