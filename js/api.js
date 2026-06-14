@@ -113,15 +113,17 @@ const API = {
         }
       } else {
         const newMovie = await response.json();
-        if (newMovie && newMovie.length > 0) {
+        // PostgREST 单行 POST 返回对象，批量返回数组，兼容两者
+        const createdMovie = Array.isArray(newMovie) ? newMovie[0] : newMovie;
+        if (createdMovie && createdMovie.id) {
           if (prepend) {
-            appState.movies.unshift(newMovie[0]);
+            appState.movies.unshift(createdMovie);
           } else {
-            appState.movies.push(newMovie[0]);
+            appState.movies.push(createdMovie);
           }
 
           if (typeof Cache !== 'undefined') {
-            await Cache.saveMovies([newMovie[0]]);
+            await Cache.saveMovies([createdMovie]);
           }
         } else {
           // Supabase 请求成功但未返回 representation，使用本地数据
