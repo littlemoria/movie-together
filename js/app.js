@@ -444,8 +444,7 @@ const App = {
       rating: rating,
       director: director,
       cast: cast,
-      tmdb_id: tmdbId,
-      status: 'watched'
+      tmdb_id: tmdbId
     };
     
     const id = document.getElementById('movie-id').value;
