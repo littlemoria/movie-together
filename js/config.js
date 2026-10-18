@@ -13,7 +13,6 @@ const getEnvConfig = () => {
     SUPABASE_URL: 'https://zbghffgydxzufzfuozwq.supabase.co',
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiZ2hmZmd5ZHh6dWZ6ZnVvendxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzI1MDAsImV4cCI6MjA5MDQ0ODUwMH0.9_v1GjPo1ISkGCyvyAsqwhvkfRMsvR_OfgZVStxhVRc',
     TMDB_API_KEY: 'cd1951025c510fc9bf0a0523bfc31b6b',
-    ADMIN_PASSWORD: 'huiwan111',
     DEBUG: false
   };
 };
@@ -27,8 +26,6 @@ const Config = {
   TMDB_API_KEY: envConfig.TMDB_API_KEY,
   TMDB_IMAGE_BASE: 'https://image.tmdb.org/t/p/w200',
   TMDB_IMAGE_BASE_LG: 'https://image.tmdb.org/t/p/w500',
-
-  DEFAULT_ADMIN_PASSWORD: envConfig.ADMIN_PASSWORD,
   
   // 调试模式
   DEBUG: envConfig.DEBUG || false,
@@ -121,8 +118,7 @@ let config = {
   bgGif: '',
   bgVideo: '',
   bgMaskOpacity: 30,
-  cardOpacity: 100,
-  adminPassword: Config.DEFAULT_ADMIN_PASSWORD
+  cardOpacity: 100
 };
 
 // 全局状态

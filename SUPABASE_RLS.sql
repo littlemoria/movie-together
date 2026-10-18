@@ -1,71 +1,80 @@
 -- ============================================
--- CineMemo Supabase RLS 配置脚本
+-- CineMemo Supabase RLS 收紧脚本
 -- ============================================
--- 
+--
 -- 使用说明：
 -- 1. 登录 Supabase 控制台：https://supabase.com/dashboard
--- 2. 选择你的项目
--- 3. 进入 SQL Editor
--- 4. 运行此脚本
+-- 2. 选择项目 → 进入 SQL Editor
+-- 3. 粘贴并运行本脚本
 --
--- RLS (Row Level Security) 作用：
--- - 限制谁可以读取/写入数据
--- - 即使有人拿到 API Key，也需要通过认证才能访问数据
--- - 保护你的观影记录不被未授权访问
+-- 设计目标：
+-- - 读取：对匿名用户保持公开只读（有链接即可浏览）
+-- - 写入（增/改/删）：仅允许已登录用户（authenticated），由 Supabase Auth 提供登录态
+-- - 前端不再保存任何密码，anon key 即使公开也无法写入数据
+--
+-- ⚠️ 运行前请确认已完成：
+--    Authentication → Providers → 启用 Email；并创建至少一个用户账号
 -- ============================================
 
--- 启用 RLS
+-- ============================================
+-- 电影表 (movies)
+-- ============================================
 ALTER TABLE movies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
--- ============================================
--- 电影表 (movies) 的访问策略
--- ============================================
+-- 1) 删除旧的宽松策略（关键：不删则 anon 仍可增删改）
+DROP POLICY IF EXISTS "允许公开读取电影" ON movies;
+DROP POLICY IF EXISTS "允许公开添加电影" ON movies;
+DROP POLICY IF EXISTS "允许更新电影" ON movies;
+DROP POLICY IF EXISTS "允许公开删除电影" ON movies;
+-- 兼容重复运行
+DROP POLICY IF EXISTS "公开读取电影" ON movies;
+DROP POLICY IF EXISTS "登录用户添加电影" ON movies;
+DROP POLICY IF EXISTS "登录用户更新电影" ON movies;
+DROP POLICY IF EXISTS "登录用户删除电影" ON movies;
 
--- 策略 1: 允许所有人读取电影数据
--- （如果想要私有，可以改成基于认证用户的策略）
-CREATE POLICY "允许公开读取电影"
+-- 2) 新策略：公开只读，写入仅限登录用户
+CREATE POLICY "公开读取电影"
 ON movies
 FOR SELECT
 TO anon, authenticated
 USING (true);
 
--- 策略 2: 允许所有人添加电影
--- （建议改为仅认证用户可添加）
-CREATE POLICY "允许公开添加电影"
+CREATE POLICY "登录用户添加电影"
 ON movies
 FOR INSERT
-TO anon, authenticated
+TO authenticated
 WITH CHECK (true);
 
--- 策略 3: 允许更新电影（仅限记录创建者或管理员）
-CREATE POLICY "允许更新电影"
+CREATE POLICY "登录用户更新电影"
 ON movies
 FOR UPDATE
 TO authenticated
 USING (true)
 WITH CHECK (true);
 
--- 策略 4: 允许删除电影（允许公开删除）
-CREATE POLICY "允许公开删除电影"
+CREATE POLICY "登录用户删除电影"
 ON movies
 FOR DELETE
-TO anon, authenticated
+TO authenticated
 USING (true);
 
 -- ============================================
--- 设置表 (settings) 的访问策略
+-- 设置表 (settings)
 -- ============================================
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
--- 策略 1: 允许所有人读取设置
-CREATE POLICY "允许公开读取设置"
+DROP POLICY IF EXISTS "允许公开读取设置" ON settings;
+DROP POLICY IF EXISTS "允许认证用户修改设置" ON settings;
+DROP POLICY IF EXISTS "公开读取设置" ON settings;
+DROP POLICY IF EXISTS "登录用户写入设置" ON settings;
+
+CREATE POLICY "公开读取设置"
 ON settings
 FOR SELECT
 TO anon, authenticated
 USING (true);
 
--- 策略 2: 仅允许认证用户修改设置
-CREATE POLICY "允许认证用户修改设置"
+CREATE POLICY "登录用户写入设置"
 ON settings
 FOR ALL
 TO authenticated
@@ -73,59 +82,29 @@ USING (true)
 WITH CHECK (true);
 
 -- ============================================
--- 验证 RLS 是否启用
+-- 验证：查看最终策略
 -- ============================================
-SELECT 
-    schemaname,
-    tablename,
-    rowsecurity
-FROM pg_tables 
-WHERE tablename IN ('movies', 'settings');
-
--- ============================================
--- 查看所有策略
--- ============================================
-SELECT 
-    schemaname,
-    tablename,
-    policyname,
-    permissive,
-    roles,
-    cmd,
-    qual
+SELECT tablename, policyname, cmd, roles
 FROM pg_policies
-WHERE tablename IN ('movies', 'settings');
-
--- ============================================
--- 测试 RLS（可在 Supabase SQL Editor 执行）
--- ============================================
-
--- 测试读取权限
--- SELECT * FROM movies LIMIT 5;
-
--- 测试写入权限
--- INSERT INTO movies (movie_name, watch_date) 
--- VALUES ('测试电影', '2024-01-01');
+WHERE tablename IN ('movies', 'settings')
+ORDER BY tablename, cmd;
 
 -- ============================================
 -- 注意事项
 -- ============================================
--- 
--- 1. 如果你启用了认证系统，可以进一步限制：
---    - 只允许创建者修改自己的记录
---    - 基于用户角色设置不同权限
 --
--- 2. 如果想要完全私有（只有登录用户可见）：
---    - 将 movies 的 SELECT 策略改为：
---      CREATE POLICY "仅认证用户可读取电影"
---      ON movies
---      FOR SELECT
---      TO authenticated
---      USING (true);
+-- 1. SQL Editor 以特权角色运行、会绕过 RLS，"Run 成功"不代表策略正确。
+--    真正的验证要在外部用 anon key 发请求：
+--      - 未登录 POST/DELETE /rest/v1/movies 应返回 401/403
+--      - 未登录 GET /rest/v1/movies 应返回 200
 --
--- 3. 建议结合 Supabase Auth 使用：
---    - 创建认证用户
---    - 将用户 ID 存储在 movies 表中
---    - 设置基于用户的访问策略
+-- 2. 若 movies 写入报 "permission denied"（而非 401），可补授权：
+--      GRANT SELECT, INSERT, UPDATE, DELETE ON movies TO anon, authenticated;
+--      GRANT SELECT, INSERT, UPDATE, DELETE ON settings TO anon, authenticated;
 --
+-- 3. 若运行到 settings 段报 "relation \"settings\" does not exist"，
+--    说明该表尚未创建，跳过 settings 相关语句即可。
+--
+-- 4. 如日后想让"读取也需登录"（完全私有），把 movies / settings 的
+--    SELECT 策略里的 "TO anon, authenticated" 改为 "TO authenticated"。
 -- ============================================

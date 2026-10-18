@@ -134,8 +134,6 @@ const Utils = {
         console.error('加载配置失败:', e);
       }
     }
-    // 强制使用默认密码
-    config.adminPassword = Config.DEFAULT_ADMIN_PASSWORD;
   },
 
   /**

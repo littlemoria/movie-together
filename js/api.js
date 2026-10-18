@@ -4,6 +4,8 @@
  */
 
 const API = {
+  client: null,
+
   initSupabase() {
     if (Config.SUPABASE_URL === 'YOUR_SUPABASE_URL') {
       console.log('请配置 Supabase');
@@ -15,7 +17,30 @@ const API = {
       return null;
     }
     
-    return window.supabase.createClient(Config.SUPABASE_URL, Config.SUPABASE_KEY);
+    this.client = window.supabase.createClient(Config.SUPABASE_URL, Config.SUPABASE_KEY);
+    return this.client;
+  },
+
+  /**
+   * 构造请求头：登录后使用用户 access_token，未登录回退匿名 key
+   * 写入操作依赖服务端 RLS 校验登录态，因此必须带上用户令牌
+   */
+  async authHeader() {
+    let token = Config.SUPABASE_KEY;
+    try {
+      if (this.client) {
+        const { data } = await this.client.auth.getSession();
+        if (data && data.session && data.session.access_token) {
+          token = data.session.access_token;
+        }
+      }
+    } catch (e) {
+      // 获取会话失败时回退到匿名 key
+    }
+    return {
+      'apikey': Config.SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`
+    };
   },
 
   async fetchAllMovies() {
@@ -32,10 +57,7 @@ const API = {
       const response = await fetch(
         `${Config.SUPABASE_URL}/rest/v1/movies?select=*&order=watch_date.desc`,
         {
-          headers: {
-            'apikey': Config.SUPABASE_KEY,
-            'Authorization': `Bearer ${Config.SUPABASE_KEY}`
-          }
+          headers: await this.authHeader()
         }
       );
       
@@ -90,8 +112,7 @@ const API = {
       const response = await fetch(url, {
         method,
         headers: {
-          'apikey': Config.SUPABASE_KEY,
-          'Authorization': `Bearer ${Config.SUPABASE_KEY}`,
+          ...(await this.authHeader()),
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
@@ -195,10 +216,7 @@ const API = {
         `${Config.SUPABASE_URL}/rest/v1/movies?id=eq.${id}`,
         {
           method: 'DELETE',
-          headers: {
-            'apikey': Config.SUPABASE_KEY,
-            'Authorization': `Bearer ${Config.SUPABASE_KEY}`
-          }
+          headers: await this.authHeader()
         }
       );
       
@@ -239,8 +257,7 @@ const API = {
         `${Config.SUPABASE_URL}/rest/v1/settings?key=eq.global`,
         {
           headers: {
-            'apikey': Config.SUPABASE_KEY,
-            'Authorization': `Bearer ${Config.SUPABASE_KEY}`,
+            ...(await this.authHeader()),
             'Content-Type': 'application/json'
           }
         }
@@ -301,8 +318,7 @@ const API = {
         `${Config.SUPABASE_URL}/rest/v1/settings?key=eq.global`,
         {
           headers: {
-            'apikey': Config.SUPABASE_KEY,
-            'Authorization': `Bearer ${Config.SUPABASE_KEY}`,
+            ...(await this.authHeader()),
             'Content-Type': 'application/json'
           }
         }
@@ -316,8 +332,7 @@ const API = {
           {
             method: 'PATCH',
             headers: {
-              'apikey': Config.SUPABASE_KEY,
-              'Authorization': `Bearer ${Config.SUPABASE_KEY}`,
+              ...(await this.authHeader()),
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({ value })
@@ -329,8 +344,7 @@ const API = {
           {
             method: 'POST',
             headers: {
-              'apikey': Config.SUPABASE_KEY,
-              'Authorization': `Bearer ${Config.SUPABASE_KEY}`,
+              ...(await this.authHeader()),
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({ key: 'global', value })

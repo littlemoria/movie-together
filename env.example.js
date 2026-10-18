@@ -18,9 +18,6 @@ const ENV = {
   // TMDB API Key（从 https://www.themoviedb.org/settings/api 获取）
   TMDB_API_KEY: 'YOUR_TMDB_API_KEY',
   
-  // 管理员密码（建议修改默认密码）
-  ADMIN_PASSWORD: 'change-this-password',
-  
   // 是否启用调试模式
   DEBUG: false
 };

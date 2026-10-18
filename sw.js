@@ -1,6 +1,6 @@
-const CACHE_NAME = 'cinememo-v2';
-const STATIC_CACHE = 'cinememo-static-v2';
-const DYNAMIC_CACHE = 'cinememo-dynamic-v1';
+const CACHE_NAME = 'cinememo-v3';
+const STATIC_CACHE = 'cinememo-static-v3';
+const DYNAMIC_CACHE = 'cinememo-dynamic-v2';
 
 const STATIC_ASSETS = [
   'index.html',

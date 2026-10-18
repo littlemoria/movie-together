@@ -121,9 +121,9 @@ create table movies (
 - 目前URL包含github用户名 littlemoria
 - 可考虑使用自定义域名让URL更优雅
 
-### 6. 修改管理员密码 ✅ 已完成
-- 当前密码: huiwan111
-- 可修改为更个性化的密码
+### 6. 管理员认证 ✅ 已完成（Supabase Auth）
+- 登录改用 Supabase 邮箱+密码账号，密码不再硬编码在前端
+- 写入操作由服务端 RLS 强制校验登录态
 
 ### 7. GitHub仓库安全和隐私
 - 项目目前公开，考虑设为私有

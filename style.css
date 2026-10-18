@@ -971,6 +971,7 @@ body {
   margin-bottom: 8px;
 }
 
+#admin-email,
 #admin-password {
   margin-bottom: 10px;
 }

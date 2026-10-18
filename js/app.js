@@ -15,7 +15,7 @@ const App = {
     Utils.loadCustomGenres();
     
     if (typeof Auth !== 'undefined') {
-      Auth.init();
+      await Auth.init();
     }
     
     if (typeof LazyLoad !== 'undefined') {
@@ -565,24 +565,21 @@ const App = {
   /**
    * 登录
    */
-  login() {
-    const password = document.getElementById('admin-password').value;
-    if (password === config.adminPassword) {
-      appState.isAdmin = true;
-      Utils.showToast('登录成功！', 'success');
-      this.updateLoginStatus();
-    } else {
-      Utils.showToast('密码错误', 'error');
+  async login() {
+    const email = (document.getElementById('admin-email')?.value || '').trim();
+    const password = document.getElementById('admin-password')?.value || '';
+    if (!email || !password) {
+      Utils.showToast('请输入邮箱和密码', 'error');
+      return;
     }
+    await Auth.login(email, password);
   },
 
   /**
    * 登出
    */
-  logout() {
-    appState.isAdmin = false;
-    Utils.showToast('已退出登录', 'info');
-    this.updateLoginStatus();
+  async logout() {
+    await Auth.logout();
   },
 
   /**
