@@ -66,7 +66,11 @@ const Sync = {
       
       if (movies && movies.length > 0) {
         await Cache.saveMovies(movies);
-        appState.movies = movies;
+        if (typeof Store !== 'undefined') {
+          Store.setMovies(movies);
+        } else {
+          appState.movies = movies;
+        }
         
         if (typeof Components !== 'undefined') {
           Components.renderHome();
@@ -108,6 +112,9 @@ const Sync = {
     
     console.log('[Sync] Processing', queue.length, 'queued items');
     
+    let successCount = 0;
+    let failedCount = 0;
+    
     // 显示离线操作正在同步
     if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
       Utils.showToast(`正在同步 ${queue.length} 条离线操作...`, 'info');
@@ -117,15 +124,21 @@ const Sync = {
       try {
         await this.processQueueItem(item);
         await Cache.removeSyncQueueItem(item.id);
+        successCount++;
         console.log('[Sync] Processed:', item.action);
       } catch (error) {
+        failedCount++;
         console.error('[Sync] Failed to process item:', item, error);
       }
     }
     
-    // 显示离线操作同步完成
+    // 显示离线操作同步结果（按实际成功数量提示，失败项保留在队列中）
     if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
-      Utils.showToast(`已同步 ${queue.length} 条离线操作`, 'success');
+      if (failedCount === 0) {
+        Utils.showToast(`已同步 ${successCount} 条离线操作`, 'success');
+      } else {
+        Utils.showToast(`已同步 ${successCount} 条，${failedCount} 条失败（稍后重试）`, 'warning');
+      }
     }
   },
   
@@ -134,37 +147,44 @@ const Sync = {
     
     switch (action) {
       case 'add':
-        await API.addMovie(data);
+        await API.saveMovie(data, null, { fromSync: true, prepend: true });
         break;
       case 'update':
-        await API.updateMovie(data);
+        await API.saveMovie(data, data.id, { fromSync: true });
         break;
       case 'delete':
-        await API.deleteMovie(data.id);
+        await API.deleteMovie(data.id, { fromSync: true });
         break;
       default:
         console.warn('[Sync] Unknown action:', action);
     }
   },
   
-  async addMovieOffline(movieData) {
+  async addMovieOffline(movieData, options = {}) {
     if (typeof Cache === 'undefined') {
       throw new Error('Cache not available');
     }
     
-    const tempId = 'temp_' + Date.now();
-    const movie = {
+    const tempId = MovieDomain.createLocalId();
+    const movie = MovieDomain.normalizeMovie({
       ...movieData,
       id: tempId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       _pending: true
-    };
+    });
     
     await Cache.saveMovies([movie]);
-    await Cache.addToSyncQueue('add', movieData);
+    await Cache.addToSyncQueue('add', { ...movieData, id: tempId });
     
-    appState.movies.push(movie);
+    // 通过 Store 更新共享状态，保证归一化与数据版本一致
+    if (typeof Store !== 'undefined') {
+      Store.upsertMovie(movie, { prepend: options.prepend !== false });
+    } else {
+      appState.movies = options.prepend === false
+        ? [...appState.movies, movie]
+        : [movie, ...appState.movies];
+    }
     
     return movie;
   },
@@ -174,18 +194,22 @@ const Sync = {
       throw new Error('Cache not available');
     }
     
-    const movie = {
+    const movie = MovieDomain.normalizeMovie({
       ...movieData,
       updated_at: new Date().toISOString(),
       _pending: true
-    };
+    });
     
     await Cache.saveMovies([movie]);
     await Cache.addToSyncQueue('update', movieData);
     
-    const index = appState.movies.findIndex(m => m.id === movieData.id);
-    if (index !== -1) {
-      appState.movies[index] = movie;
+    if (typeof Store !== 'undefined') {
+      Store.upsertMovie(movie, { prepend: false });
+    } else {
+      const index = appState.movies.findIndex(m => String(m.id) === String(movieData.id));
+      if (index !== -1) {
+        appState.movies[index] = movie;
+      }
     }
     
     return movie;
@@ -199,7 +223,11 @@ const Sync = {
     await Cache.deleteMovie(id);
     await Cache.addToSyncQueue('delete', { id });
     
-    appState.movies = appState.movies.filter(m => m.id !== id);
+    if (typeof Store !== 'undefined') {
+      Store.removeMovie(id);
+    } else {
+      appState.movies = appState.movies.filter(m => String(m.id) !== String(id));
+    }
   },
   
   async loadFromCache() {

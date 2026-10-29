@@ -21,15 +21,16 @@ const Auth = {
 
     try {
       const { data } = await API.client.auth.getSession();
-      appState.isAdmin = !!(data && data.session);
+      Store.setSession(data && data.session);
     } catch (e) {
       console.error('恢复会话失败:', e);
-      appState.isAdmin = false;
+      Store.setSession(null);
     }
     this.refreshUI();
 
     API.client.auth.onAuthStateChange((_event, session) => {
-      appState.isAdmin = !!session;
+      Store.setSession(session);
+      if (!session) Store.resetPrivateData();
       this.refreshUI();
     });
   },
@@ -55,12 +56,12 @@ const Auth = {
       return false;
     }
     try {
-      const { error } = await API.client.auth.signInWithPassword({ email, password });
+      const { data, error } = await API.client.auth.signInWithPassword({ email, password });
       if (error) {
         Utils.showToast('登录失败：' + error.message, 'error');
         return false;
       }
-      appState.isAdmin = true;
+      Store.setSession(data.session);
       Utils.showToast('登录成功！', 'success');
       this.refreshUI();
       return true;
@@ -82,7 +83,8 @@ const Auth = {
     } catch (e) {
       console.error('登出失败:', e);
     }
-    appState.isAdmin = false;
+    Store.setSession(null);
+    Store.resetPrivateData();
     Utils.showToast('已退出登录', 'info');
     this.refreshUI();
   },

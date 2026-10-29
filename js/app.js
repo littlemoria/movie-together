@@ -448,7 +448,7 @@ const App = {
     };
     
     const id = document.getElementById('movie-id').value;
-    const saved = await API.saveMovie(movieData, id || null);
+    const result = await API.saveMovie(movieData, id || null);
     
     // 如果已看电影在"想看"列表中存在（通过 tmdb_id 匹配），自动清理重复数据
     if (tmdbId) {
@@ -467,7 +467,15 @@ const App = {
     Components.renderAchievements();
     Components.renderStats();
     
-    Utils.showToast(saved ? (id ? '更新成功！' : '添加成功！') : '保存成功！（本地模式）', saved ? 'success' : 'info');
+    const saved = result && result.ok;
+    if (result && result.status === 'queued') {
+      Utils.showToast(id ? '已保存到本地，联网后自动同步' : '已保存到本地，联网后自动同步', 'info');
+    } else if (saved) {
+      Utils.showToast(id ? '更新成功！' : '添加成功！', 'success');
+    } else {
+      const message = result && result.error ? result.error.message : '保存失败，请稍后重试';
+      Utils.showToast(message, 'error');
+    }
   },
 
   /**
@@ -987,8 +995,8 @@ const App = {
 
           // 不发送 created_at / updated_at，由 Supabase 默认值处理
           // （手动添加也不发这些字段，保持一致，避免未知列错误）
-          const ok = await API.saveMovie(movieData, null, { prepend: false });
-          if (!ok) saveFailed = true;
+          const result = await API.saveMovie(movieData, null, { prepend: false });
+          if (!result || !result.ok) saveFailed = true;
 
           // 每 5 条更新一次进度
           if ((i + 1) % 5 === 0 || i === imported.length - 1) {

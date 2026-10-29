@@ -68,6 +68,22 @@ const Cache = {
     console.log('[Cache] Saved', movies.length, 'movies');
   },
   
+  async replaceMovies(movies) {
+    if (!this.db) await this.init();
+    const tx = this.db.transaction(this.STORES.MOVIES, 'readwrite');
+    const store = tx.objectStore(this.STORES.MOVIES);
+    store.clear();
+    (Array.isArray(movies) ? movies : []).forEach(movie => {
+      store.put({ ...movie, cached_at: new Date().toISOString() });
+    });
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    await this.setMetadata('last_sync', new Date().toISOString());
+  },
+
   async getMovies() {
     if (!this.db) await this.init();
     

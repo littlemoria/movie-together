@@ -121,22 +121,6 @@ let config = {
   cardOpacity: 100
 };
 
-// 全局状态
-let appState = {
-  movies: [],
-  isAdmin: false,
-  customGenres: [],
-  currentTrackIndex: -1,
-  musicMuted: true,
-  musicPaused: true,
-  musicPanelOpen: false,
-  currentTmdbResults: [],
-  selectedTmdbMovie: null,
-  movieListMode: 'watched',
-  unlockedAchievements: [],
-  _dataVersion: 0     // 数据版本号，用于缓存失效
-};
-
 // 云端设置
 let cloudSettings = {
   bgType: 'image',

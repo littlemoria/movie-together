@@ -1,466 +1,251 @@
 /**
- * API 模块
- * 处理 Supabase 和 TMDB API 调用
+ * 网页端应用服务：协调仓储、状态、缓存与备份。
+ * 纯数据传输位于 repository.js，电影与设置契约位于 domain.js。
  */
-
 const API = {
   client: null,
+  repository: null,
 
   initSupabase() {
-    if (Config.SUPABASE_URL === 'YOUR_SUPABASE_URL') {
-      console.log('请配置 Supabase');
+    if (Config.SUPABASE_URL === 'YOUR_SUPABASE_URL' || !Config.SUPABASE_KEY) {
+      console.warn('[API] Supabase 未配置');
       return null;
     }
-    
     if (typeof window.supabase === 'undefined') {
-      console.error('Supabase SDK 未加载');
+      console.error('[API] Supabase SDK 未加载');
       return null;
     }
-    
-    this.client = window.supabase.createClient(Config.SUPABASE_URL, Config.SUPABASE_KEY);
+    if (!this.client) {
+      this.client = window.supabase.createClient(Config.SUPABASE_URL, Config.SUPABASE_KEY);
+    }
+    if (!this.repository) {
+      this.repository = new SupabaseRepository({
+        baseUrl: Config.SUPABASE_URL,
+        anonKey: Config.SUPABASE_KEY,
+        getAccessToken: () => this.getAccessToken()
+      });
+    }
     return this.client;
   },
 
-  /**
-   * 构造请求头：登录后使用用户 access_token，未登录回退匿名 key
-   * 写入操作依赖服务端 RLS 校验登录态，因此必须带上用户令牌
-   */
-  async authHeader() {
-    let token = Config.SUPABASE_KEY;
-    try {
-      if (this.client) {
-        const { data } = await this.client.auth.getSession();
-        if (data && data.session && data.session.access_token) {
-          token = data.session.access_token;
-        }
-      }
-    } catch (e) {
-      // 获取会话失败时回退到匿名 key
-    }
-    return {
-      'apikey': Config.SUPABASE_KEY,
-      'Authorization': `Bearer ${token}`
-    };
+  async getAccessToken() {
+    if (!this.client) return null;
+    const { data, error } = await this.client.auth.getSession();
+    if (error) throw error;
+    return data && data.session ? data.session.access_token : null;
   },
 
-  async fetchAllMovies() {
-    return this.fetchMovies();
+  ensureRepository() {
+    if (!this.client) this.initSupabase();
+    if (!this.repository) throw new DataError('Supabase 未配置', 'CONFIG_ERROR');
+    return this.repository;
   },
 
-  async fetchMovies() {
-    if (!navigator.onLine && typeof Cache !== 'undefined') {
-      console.log('[API] Offline, loading from cache');
-      return await Cache.getMovies();
+  async fetchMovies(options = {}) {
+    const { allowCache = true } = options;
+    if (!Store.isAuthenticated()) return [];
+    if (!navigator.onLine) {
+      if (allowCache && typeof Cache !== 'undefined') return Cache.getMovies();
+      throw new DataError('当前处于离线状态', 'NETWORK_ERROR');
     }
-    
     try {
-      const response = await fetch(
-        `${Config.SUPABASE_URL}/rest/v1/movies?select=*&order=watch_date.desc`,
-        {
-          headers: await this.authHeader()
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const movies = await response.json();
-      
-      if (typeof Cache !== 'undefined' && movies && movies.length > 0) {
-        await Cache.saveMovies(movies);
-      }
-      
+      const movies = await this.ensureRepository().listMovies();
+      if (typeof Cache !== 'undefined') await Cache.replaceMovies(movies);
       return movies;
-    } catch (err) {
-      console.error('获取电影列表失败:', err);
-      
-      if (typeof Cache !== 'undefined') {
-        return await Cache.getMovies();
+    } catch (error) {
+      if (error.code === 'NETWORK_ERROR' && allowCache && typeof Cache !== 'undefined') {
+        return Cache.getMovies();
       }
-      
-      return [];
+      throw error;
     }
+  },
+
+  // 自动同步必须读取云端权威数据，不能把缓存误当作同步成功。
+  async fetchAllMovies() {
+    return this.fetchMovies({ allowCache: false });
   },
 
   async saveMovie(movieData, id = null, options = {}) {
-    const { prepend = true } = options;
-    if (!navigator.onLine && typeof Sync !== 'undefined') {
-      console.log('[API] Offline, saving to sync queue');
-      if (id) {
-        return Sync.updateMovieOffline({ ...movieData, id });
-      } else {
-        return Sync.addMovieOffline(movieData);
-      }
+    const { prepend = true, fromSync = false } = options;
+    if (!Store.isAuthenticated()) {
+      const error = new DataError('请先登录后再保存', 'AUTH_REQUIRED');
+      if (fromSync) throw error;
+      return { ok: false, status: 'failed', error };
     }
-    
+    if (!fromSync && !navigator.onLine) return this.queueMovieOffline(movieData, id, prepend);
+
     try {
-      let url, method, body;
-      
-      if (id) {
-        url = `${Config.SUPABASE_URL}/rest/v1/movies?id=eq.${id}`;
-        method = 'PATCH';
-        body = JSON.stringify(movieData);
-      } else {
-        url = `${Config.SUPABASE_URL}/rest/v1/movies`;
-        method = 'POST';
-        // 删除临时 ID（如 'temp_...'），让 Supabase 自动生成 UUID
-        const { id: _tempId, ...dataWithoutId } = movieData;
-        body = JSON.stringify(dataWithoutId);
-      }
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          ...(await this.authHeader()),
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body
-      });
-
-      if (!response.ok) {
-        // 读取 Supabase 返回的详细错误信息
-        let errorDetail = '';
-        try {
-          const errorBody = await response.json();
-          errorDetail = JSON.stringify(errorBody);
-        } catch (e) {
-          errorDetail = await response.text().catch(() => '(无法读取响应)');
-        }
-        console.error('Supabase 请求失败:', {
-          status: response.status,
-          method,
-          url,
-          requestBody: body,
-          error: errorDetail
-        });
-        throw new Error(`HTTP ${response.status}: ${errorDetail}`);
-      }
-
-      if (id) {
-        const idx = appState.movies.findIndex(m => m.id === id);
-        if (idx >= 0) {
-          appState.movies[idx] = { ...appState.movies[idx], ...movieData };
-        }
-        
-        if (typeof Cache !== 'undefined') {
-          await Cache.saveMovies([appState.movies[idx]]);
-        }
-      } else {
-        const newMovie = await response.json();
-        // PostgREST 单行 POST 返回对象，批量返回数组，兼容两者
-        const createdMovie = Array.isArray(newMovie) ? newMovie[0] : newMovie;
-        if (createdMovie && createdMovie.id) {
-          if (prepend) {
-            appState.movies.unshift(createdMovie);
-          } else {
-            appState.movies.push(createdMovie);
-          }
-
-          if (typeof Cache !== 'undefined') {
-            await Cache.saveMovies([createdMovie]);
-          }
-        } else {
-          // Supabase 请求成功但未返回 representation，使用本地数据
-          movieData.id = Date.now();
-          movieData.created_at = new Date().toISOString();
-          if (prepend) {
-            appState.movies.unshift(movieData);
-          } else {
-            appState.movies.push(movieData);
-          }
-
-          if (typeof Cache !== 'undefined') {
-            await Cache.saveMovies([movieData]);
-          }
-        }
-      }
-      
-      if (typeof Backup !== 'undefined' && Backup.isAutoBackupEnabled()) {
-        Backup.createBackup(appState.movies);
-      }
-      
-      return true;
-    } catch (err) {
-      console.error('保存失败:', err);
-      if (id) {
-        const idx = appState.movies.findIndex(m => m.id === id);
-        if (idx >= 0) appState.movies[idx] = { ...appState.movies[idx], ...movieData };
-      } else {
-        movieData.id = Date.now();
-        if (prepend) {
-          appState.movies.unshift(movieData);
-        } else {
-          appState.movies.push(movieData);
-        }
-      }
-      localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(appState.movies));
-      
-      if (typeof Backup !== 'undefined' && Backup.isAutoBackupEnabled()) {
-        Backup.createBackup(appState.movies);
-      }
-      
-      return false;
+      const movie = await this.ensureRepository().saveMovie(movieData, id);
+      Store.upsertMovie(movie, { prepend });
+      if (typeof Cache !== 'undefined') await Cache.saveMovies([movie]);
+      this.createAutoBackup();
+      return { ok: true, status: 'synced', movie };
+    } catch (error) {
+      if (fromSync) throw error;
+      if (error.code === 'NETWORK_ERROR') return this.queueMovieOffline(movieData, id, prepend);
+      console.error('[API] 保存失败:', error.code, error.message);
+      return { ok: false, status: 'failed', error };
     }
   },
 
-  async deleteMovie(id) {
-    if (!navigator.onLine && typeof Sync !== 'undefined') {
-      console.log('[API] Offline, adding to sync queue');
-      return Sync.deleteMovieOffline(id);
-    }
-    
+  async queueMovieOffline(movieData, id, prepend) {
     try {
-      const response = await fetch(
-        `${Config.SUPABASE_URL}/rest/v1/movies?id=eq.${id}`,
-        {
-          method: 'DELETE',
-          headers: await this.authHeader()
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      appState.movies = appState.movies.filter(m => m.id !== id);
-      
-      if (typeof Cache !== 'undefined') {
-        await Cache.deleteMovie(id);
-      }
-      
-      if (typeof Backup !== 'undefined' && Backup.isAutoBackupEnabled()) {
-        Backup.createBackup(appState.movies);
-      }
-      
-      return true;
-    } catch (err) {
-      console.error('删除失败:', err);
-      appState.movies = appState.movies.filter(m => m.id !== id);
-      localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(appState.movies));
-      
-      if (typeof Backup !== 'undefined' && Backup.isAutoBackupEnabled()) {
-        Backup.createBackup(appState.movies);
-      }
-      
-      return false;
+      const movie = id
+        ? await Sync.updateMovieOffline({ ...movieData, id })
+        : await Sync.addMovieOffline(movieData, { prepend });
+      return { ok: true, status: 'queued', movie };
+    } catch (error) {
+      return { ok: false, status: 'failed', error };
     }
   },
 
-  /**
-   * 获取云端设置
-   */
+  async deleteMovie(id, options = {}) {
+    const { fromSync = false } = options;
+    if (!Store.isAuthenticated()) {
+      const error = new DataError('请先登录后再删除', 'AUTH_REQUIRED');
+      if (fromSync) throw error;
+      return { ok: false, status: 'failed', error };
+    }
+    if (!fromSync && !navigator.onLine) return this.queueMovieDeletion(id);
+
+    try {
+      await this.ensureRepository().deleteMovie(id);
+      Store.removeMovie(id);
+      if (typeof Cache !== 'undefined') await Cache.deleteMovie(id);
+      this.createAutoBackup();
+      return { ok: true, status: 'synced' };
+    } catch (error) {
+      if (fromSync) throw error;
+      if (error.code === 'NETWORK_ERROR') return this.queueMovieDeletion(id);
+      console.error('[API] 删除失败:', error.code, error.message);
+      return { ok: false, status: 'failed', error };
+    }
+  },
+
+  async queueMovieDeletion(id) {
+    try {
+      await Sync.deleteMovieOffline(id);
+      return { ok: true, status: 'queued' };
+    } catch (error) {
+      return { ok: false, status: 'failed', error };
+    }
+  },
+
+  createAutoBackup() {
+    if (typeof Backup !== 'undefined' && Backup.isAutoBackupEnabled()) {
+      Backup.createBackup(appState.movies);
+    }
+  },
+
   async fetchCloudSettings() {
-    try {
-      const response = await fetch(
-        `${Config.SUPABASE_URL}/rest/v1/settings?key=eq.global`,
-        {
-          headers: {
-            ...(await this.authHeader()),
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.length > 0 && data[0].value) {
-          const settings = JSON.parse(data[0].value);
-          Object.assign(cloudSettings, settings);
-          if (settings.theme) {
-            config.theme = settings.theme;
-            localStorage.setItem(Config.STORAGE_KEYS.CONFIG, JSON.stringify(config));
-          }
-          if (settings.customGenres && settings.customGenres.length > 0) {
-            appState.customGenres = settings.customGenres;
-            localStorage.setItem(Config.STORAGE_KEYS.GENRES, JSON.stringify(settings.customGenres));
-          }
-          if (settings.wishlist && settings.wishlist.length > 0) {
-            // 保存到 localStorage，由 loadMovies() 统一合并到 movies 数组
-            localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(settings.wishlist));
-          }
-          if (settings.unlockedAchievements && settings.unlockedAchievements.length > 0) {
-            appState.unlockedAchievements = settings.unlockedAchievements;
-            localStorage.setItem(Config.STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(settings.unlockedAchievements));
-          }
-        }
-      }
-    } catch (err) {
-      console.error('获取云端设置失败:', err);
-    }
+    if (!Store.isAuthenticated()) return null;
+    const settings = await this.ensureRepository().getSettings();
+    Object.assign(cloudSettings, settings);
+    config.theme = settings.theme;
+    appState.customGenres = settings.customGenres;
+    appState.unlockedAchievements = settings.unlockedAchievements;
+    localStorage.setItem(Config.STORAGE_KEYS.CONFIG, JSON.stringify(config));
+    localStorage.setItem(Config.STORAGE_KEYS.GENRES, JSON.stringify(settings.customGenres));
+    localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(settings.wishlist));
+    localStorage.setItem(Config.STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(settings.unlockedAchievements));
+    return settings;
   },
 
-  /**
-   * 保存云端设置（统一序列化所有可同步状态）
-   */
+  buildCloudSettings() {
+    return MovieDomain.normalizeSettings({
+      ...cloudSettings,
+      theme: config.theme,
+      customGenres: appState.customGenres,
+      wishlist: appState.movies.filter(movie => movie.status === MovieDomain.MOVIE_STATUS.WISHLIST),
+      unlockedAchievements: appState.unlockedAchievements
+    });
+  },
+
   async saveCloudSettings() {
+    if (!Store.isAuthenticated()) {
+      return { ok: false, status: 'failed', error: new DataError('请先登录后再同步设置', 'AUTH_REQUIRED') };
+    }
     try {
-      const value = JSON.stringify({
-        bgType: cloudSettings.bgType,
-        bgImage: cloudSettings.bgImage,
-        bgGif: cloudSettings.bgGif,
-        bgVideo: cloudSettings.bgVideo,
-        bgMaskOpacity: cloudSettings.bgMaskOpacity,
-        cardOpacity: cloudSettings.cardOpacity,
-        theme: config.theme,
-        customGenres: appState.customGenres,
-        wishlist: appState.movies
-          .filter(m => m.status === 'wishlist')
-          .map(m => ({
-            id: m.id, movie_name: m.movie_name, tmdb_id: m.tmdb_id,
-            poster_path: m.poster_path, year: m.year, rating: m.rating, added_at: m.added_at
-          })),
-        unlockedAchievements: appState.unlockedAchievements
-      });
-      
-      const checkResponse = await fetch(
-        `${Config.SUPABASE_URL}/rest/v1/settings?key=eq.global`,
-        {
-          headers: {
-            ...(await this.authHeader()),
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      const existing = await checkResponse.json();
-      
-      if (existing && existing.length > 0) {
-        await fetch(
-          `${Config.SUPABASE_URL}/rest/v1/settings?key=eq.global`,
-          {
-            method: 'PATCH',
-            headers: {
-              ...(await this.authHeader()),
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ value })
-          }
-        );
-      } else {
-        await fetch(
-          `${Config.SUPABASE_URL}/rest/v1/settings`,
-          {
-            method: 'POST',
-            headers: {
-              ...(await this.authHeader()),
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ key: 'global', value })
-          }
-        );
-      }
-    } catch (err) {
-      console.error('保存云端设置失败:', err);
+      const settings = await this.ensureRepository().saveSettings(this.buildCloudSettings());
+      Object.assign(cloudSettings, settings);
+      return { ok: true, status: 'synced', settings };
+    } catch (error) {
+      console.error('[API] 设置同步失败:', error.code, error.message);
+      return { ok: false, status: 'failed', error };
     }
   },
 
-  /**
-   * TMDB 搜索电影
-   */
+  async fetchCloudSettingsWithRetry(retryCount = 3) {
+    if (!Store.isAuthenticated()) return false;
+    for (let attempt = 0; attempt < retryCount; attempt++) {
+      try {
+        await this.fetchCloudSettings();
+        return true;
+      } catch (error) {
+        if (error.code !== 'NETWORK_ERROR') {
+          console.error('[API] 设置读取失败:', error.code, error.message);
+          return false;
+        }
+        if (attempt < retryCount - 1) await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    return false;
+  },
+
   async searchTmdb(query) {
     try {
       const response = await fetch(
         `https://api.themoviedb.org/3/search/movie?api_key=${Config.TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=zh-CN`
       );
-      
-      if (!response.ok) {
-        throw new Error(`TMDB API 错误: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`TMDB API 错误: ${response.status}`);
       const data = await response.json();
       return data.results ? data.results.slice(0, 5) : [];
-    } catch (err) {
-      console.error('TMDB 搜索失败:', err);
+    } catch (error) {
+      console.error('[API] TMDB 搜索失败:', error);
       return [];
     }
   },
 
-  /**
-   * 获取 TMDB 电影详情
-   */
   async getTmdbMovieDetails(tmdbId) {
     try {
       const response = await fetch(
         `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${Config.TMDB_API_KEY}&language=zh-CN`
       );
-      
-      if (!response.ok) {
-        throw new Error(`TMDB API 错误: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`TMDB API 错误: ${response.status}`);
       return await response.json();
-    } catch (err) {
-      console.error('获取 TMDB 详情失败:', err);
+    } catch (error) {
+      console.error('[API] 获取 TMDB 详情失败:', error);
       return null;
     }
   },
 
-  /**
-   * 获取 TMDB 电影演职人员
-   */
   async getTmdbCredits(tmdbId) {
     try {
       const response = await fetch(
         `https://api.themoviedb.org/3/movie/${tmdbId}/credits?api_key=${Config.TMDB_API_KEY}&language=zh-CN`
       );
-      
-      if (!response.ok) {
-        throw new Error(`TMDB API 错误: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`TMDB API 错误: ${response.status}`);
       return await response.json();
-    } catch (err) {
-      console.error('获取 TMDB 演职人员失败:', err);
+    } catch (error) {
+      console.error('[API] 获取 TMDB 演职人员失败:', error);
       return { crew: [], cast: [] };
     }
   },
 
-  /**
-   * 根据电影名称从 TMDB 获取海报和元数据
-   * 仅返回 poster_path / rating / tmdb_id，不覆盖 CSV 中已有的 genre 等字段
-   * @param {string} movieName - 电影名称
-   * @returns {Object|null} { poster_path, rating, tmdb_id } 或 null
-   */
   async enrichMovieFromTmdb(movieName) {
     try {
       const results = await this.searchTmdb(movieName);
       if (!results || results.length === 0) return null;
-
       const bestMatch = results[0];
-      // 加 200ms 延迟避免 TMDB API 频率限制
-      await new Promise(r => setTimeout(r, 200));
-
+      await new Promise(resolve => setTimeout(resolve, 200));
       return {
         poster_path: bestMatch.poster_path || null,
         rating: bestMatch.vote_average ? Math.round(bestMatch.vote_average) : null,
         tmdb_id: bestMatch.id || null
       };
-    } catch (err) {
-      console.error('TMDB 丰富电影信息失败:', movieName, err);
+    } catch (error) {
+      console.error('[API] TMDB 丰富电影信息失败:', movieName, error);
       return null;
     }
-  },
-
-  /**
-   * 带重试的云端设置获取
-   */
-  async fetchCloudSettingsWithRetry(retryCount = 3) {
-    for (let i = 0; i < retryCount; i++) {
-      try {
-        await this.fetchCloudSettings();
-        if (cloudSettings.bgImage || cloudSettings.bgGif || cloudSettings.bgVideo || cloudSettings.cardOpacity !== 100) {
-          return true;
-        }
-      } catch (e) {
-        console.log(`获取云端设置第${i+1}次失败`);
-      }
-      
-      if (i < retryCount - 1) {
-        await new Promise(r => setTimeout(r, 500));
-      }
-    }
-    return false;
   }
 };

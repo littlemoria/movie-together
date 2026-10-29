@@ -20,5 +20,8 @@ env.js
 .vscode/
 .idea/
 
+# WorkBuddy 项目记忆数据（不提交到仓库）
+.workbuddy/
+
 pkg/
 src/

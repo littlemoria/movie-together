@@ -1,12 +1,15 @@
-const CACHE_NAME = 'cinememo-v3';
-const STATIC_CACHE = 'cinememo-static-v3';
-const DYNAMIC_CACHE = 'cinememo-dynamic-v2';
+const CACHE_NAME = 'cinememo-v4';
+const STATIC_CACHE = 'cinememo-static-v4';
+const DYNAMIC_CACHE = 'cinememo-dynamic-v3';
 
 const STATIC_ASSETS = [
   'index.html',
   'style.css',
   'js/logger.js',
   'js/config.js',
+  'js/domain.js',
+  'js/store.js',
+  'js/repository.js',
   'js/lazyload.js',
   'js/utils.js',
   'js/auth.js',
