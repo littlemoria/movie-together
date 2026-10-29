@@ -5,6 +5,7 @@ const DYNAMIC_CACHE = 'cinememo-dynamic-v3';
 const STATIC_ASSETS = [
   'index.html',
   'style.css',
+  'vendor/supabase-js.js',
   'js/logger.js',
   'js/config.js',
   'js/domain.js',
