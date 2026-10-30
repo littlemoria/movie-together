@@ -1,0 +1,149 @@
+<view class="page">
+    <view class="tabs">
+        <view class="tab {{mode === 'watched' ? 'active' : ''}}" data-mode="watched" bindtap="switchMode">已看</view>
+        <view class="tab {{mode === 'wishlist' ? 'active' : ''}}" data-mode="wishlist" bindtap="switchMode">想看</view>
+    </view>
+
+    <view class="toolbar">
+        <input
+            class="search-input"
+            placeholder="搜索电影名称"
+            value="{{search}}"
+            bindinput="onSearchInput"
+        />
+        <button class="btn-primary add-btn" bindtap="openAdd">＋</button>
+    </view>
+
+    <view class="nav-row">
+        <text class="nav-link" bindtap="goHome">← 首页</text>
+        <text class="nav-link" bindtap="goAchievements">成就</text>
+        <text class="nav-link" bindtap="goStats">统计</text>
+        <text class="nav-link" bindtap="goSettings">设置</text>
+        <text class="nav-link nav-link-danger" bindtap="handleLogout">退出</text>
+    </view>
+
+    <!-- 筛选栏：想看模式不显示类型/年月筛选（对齐网页版） -->
+    <view class="filters" wx:if="{{mode === 'watched' && filterOptions.length}}">
+        <picker
+            class="filter-picker"
+            mode="selector"
+            range="{{filterOptions}}"
+            range-key="label"
+            value="{{filterIndex}}"
+            bindchange="onFilterChange"
+        >
+            <view class="filter-chip">{{filterOptions[filterIndex].label || '全部'}}</view>
+        </picker>
+        <text wx:if="{{activeFilter}}" class="filter-clear" bindtap="clearFilter">清除</text>
+    </view>
+
+    <view wx:if="{{loading}}" class="state">
+        <text class="state-text">加载中…</text>
+    </view>
+
+    <view wx:elif="{{mode === 'watched' && !groups.length}}" class="state">
+        <text class="state-text">没有找到匹配的电影</text>
+    </view>
+
+    <view wx:elif="{{mode === 'wishlist' && !wishlist.length}}" class="state">
+        <text class="state-text">还没有想看的电影～</text>
+        <text class="state-sub">在添加电影时可以从 TMDB 搜索结果中一键加入</text>
+    </view>
+
+    <!-- 已看：按月分组 -->
+    <view wx:if="{{mode === 'watched'}}" class="groups">
+        <view class="month-group" wx:for="{{groups}}" wx:key="key">
+            <text class="month-header">{{item.label}}</text>
+            <view class="movie-list">
+                <view class="movie-item card" wx:for="{{item.movies}}" wx:for-item="movie" wx:key="id" data-id="{{movie.id}}" bindtap="openDetail">
+                    <image wx:if="{{movie.poster}}" class="movie-poster" src="{{movie.poster}}" mode="aspectFill" />
+                    <view wx:else class="movie-poster movie-poster-empty">🎬</view>
+                    <view class="movie-info">
+                        <text class="movie-name">{{movie.movie_name}}</text>
+                        <text class="movie-meta">{{movie.dateText}} · {{movie.durationText}}</text>
+                        <text wx:if="{{movie.genreText}}" class="movie-genre">{{movie.genreText}}</text>
+                        <text wx:if="{{movie.created_by}}" class="movie-by">{{movie.created_by}}</text>
+                    </view>
+                </view>
+            </view>
+        </view>
+    </view>
+
+    <!-- 想看 -->
+    <view wx:if="{{mode === 'wishlist'}}" class="movie-list">
+        <view class="movie-item card" wx:for="{{wishlist}}" wx:key="id">
+            <image wx:if="{{item.poster}}" class="movie-poster" src="{{item.poster}}" mode="aspectFill" />
+            <view wx:else class="movie-poster movie-poster-empty">🎬</view>
+            <view class="movie-info">
+                <text class="movie-name">{{item.movie_name}}</text>
+                <text class="movie-meta">{{item.year}}{{item.rating ? ' · ⭐' + item.rating : ''}}</text>
+            </view>
+            <view class="wishlist-actions">
+                <button class="wishlist-btn" data-id="{{item.id}}" bindtap="promoteToWatched">已看</button>
+                <button class="wishlist-btn wishlist-btn-danger" data-id="{{item.id}}" bindtap="handleRemoveWishlist">删除</button>
+            </view>
+        </view>
+    </view>
+
+    <!-- 添加/编辑弹层 -->
+    <view wx:if="{{showModal}}" class="modal-mask" bindtap="closeModal">
+        <view class="modal card" catchtap="noop">
+            <text class="modal-title">{{editingId ? '编辑记录' : '添加记录'}}</text>
+
+            <!-- TMDB 搜索 -->
+            <view class="tmdb-search">
+                <input class="input" placeholder="搜索 TMDB 电影（可选）" value="{{tmdbKeyword}}" bindinput="onTmdbKeywordInput" />
+                <button class="btn-ghost tmdb-btn" loading="{{tmdbLoading}}" bindtap="handleTmdbSearch">搜索</button>
+            </view>
+
+            <scroll-view wx:if="{{tmdbResults.length}}" class="tmdb-results" scroll-y>
+                <view class="tmdb-result" wx:for="{{tmdbResults}}" wx:key="id">
+                    <image wx:if="{{item.poster}}" class="tmdb-poster" src="{{item.poster}}" mode="aspectFill" />
+                    <view wx:else class="tmdb-poster tmdb-poster-empty">🎬</view>
+                    <view class="tmdb-info">
+                        <text class="tmdb-title">{{item.title}}</text>
+                        <text class="tmdb-meta">{{item.year}}{{item.rating ? ' · ⭐' + item.rating : ''}}</text>
+                    </view>
+                    <view class="tmdb-actions">
+                        <button class="tmdb-btn-sm" data-index="{{index}}" bindtap="handleTmdbPick">选用</button>
+                        <button class="tmdb-btn-sm tmdb-btn-wish" data-index="{{index}}" bindtap="handleTmdbWish">想看</button>
+                    </view>
+                </view>
+            </scroll-view>
+
+            <input class="input" placeholder="电影名称" value="{{form.movie_name}}" data-field="movie_name" bindinput="onFieldInput" />
+            <input class="input" placeholder="观影日期 (YYYY-MM-DD)" value="{{form.watch_date}}" data-field="watch_date" bindinput="onFieldInput" />
+            <input class="input" type="number" placeholder="时长（分钟）" value="{{form.duration_minutes}}" data-field="duration_minutes" bindinput="onFieldInput" />
+            <input class="input" placeholder="类型（逗号分隔）" value="{{form.genre}}" data-field="genre" bindinput="onFieldInput" />
+            <input class="input" placeholder="记录人（可选）" value="{{form.created_by}}" data-field="created_by" bindinput="onFieldInput" />
+            <input class="input" type="number" placeholder="评分（可选，0-10）" value="{{form.rating}}" data-field="rating" bindinput="onFieldInput" />
+            <input class="input" placeholder="导演（可选）" value="{{form.director}}" data-field="director" bindinput="onFieldInput" />
+            <input class="input" placeholder="主演（可选）" value="{{form.cast}}" data-field="cast" bindinput="onFieldInput" />
+
+            <view class="modal-actions">
+                <button class="btn-ghost" bindtap="closeModal">取消</button>
+                <button class="btn-primary" loading="{{saving}}" disabled="{{saving}}" bindtap="handleSave">保存</button>
+            </view>
+            <text wx:if="{{formError}}" class="error">{{formError}}</text>
+        </view>
+    </view>
+
+    <!-- 详情弹层 -->
+    <view wx:if="{{showDetail}}" class="modal-mask" bindtap="closeDetail">
+        <view class="modal card detail-modal" catchtap="noop">
+            <image wx:if="{{detail.poster}}" class="detail-poster" src="{{detail.poster}}" mode="aspectFill" />
+            <text class="detail-title">{{detail.movie_name}}</text>
+            <text class="detail-meta">观影日期：{{detail.dateText}}</text>
+            <text class="detail-meta">时长：{{detail.durationText}}</text>
+            <text class="detail-meta">类型：{{detail.genreText || '未分类'}}</text>
+            <text class="detail-meta">记录人：{{detail.created_by || 'TA'}}</text>
+            <text wx:if="{{detail.rating}}" class="detail-meta">评分：{{detail.rating}}/10</text>
+            <text wx:if="{{detail.director}}" class="detail-meta">导演：{{detail.director}}</text>
+            <text wx:if="{{detail.cast}}" class="detail-meta">主演：{{detail.cast}}</text>
+            <view class="modal-actions">
+                <button class="btn-danger" bindtap="handleDelete">删除</button>
+                <button class="btn-primary" bindtap="handleEditFromDetail">编辑</button>
+            </view>
+        </view>
+    </view>
+</view>

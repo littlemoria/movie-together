@@ -1,0 +1,31 @@
+<view class="page">
+    <view class="hero">
+        <text class="title">CineMemo</text>
+        <text class="subtitle">记录我们的观影时光</text>
+    </view>
+
+    <view class="form card">
+        <input
+            class="input"
+            type="text"
+            placeholder="邮箱"
+            value="{{email}}"
+            bindinput="onEmailInput"
+        />
+        <input
+            class="input"
+            type="password"
+            password
+            placeholder="密码"
+            value="{{password}}"
+            bindinput="onPasswordInput"
+        />
+        <button
+            class="btn-primary submit"
+            loading="{{loading}}"
+            disabled="{{loading}}"
+            bindtap="handleLogin"
+        >登录</button>
+        <text wx:if="{{error}}" class="error">{{error}}</text>
+    </view>
+</view>

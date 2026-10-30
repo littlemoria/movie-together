@@ -1,0 +1,77 @@
+<view class="page">
+    <!-- 主题 -->
+    <view class="section card">
+        <text class="section-title">主题</text>
+        <view class="theme-switch">
+            <view class="theme-option {{theme === 'light' ? 'active' : ''}}" data-theme="light" bindtap="setTheme">浅色</view>
+            <view class="theme-option {{theme === 'dark' ? 'active' : ''}}" data-theme="dark" bindtap="setTheme">深色</view>
+        </view>
+    </view>
+
+    <!-- 背景 -->
+    <view class="section card">
+        <text class="section-title">背景</text>
+        <view class="field">
+            <text class="field-label">背景图片链接</text>
+            <input class="input" placeholder="https://..." value="{{bgImage}}" data-field="bgImage" bindinput="onFieldInput" />
+        </view>
+        <view class="field">
+            <text class="field-label">遮罩浓度 {{bgMaskOpacity}}%</text>
+            <slider
+                class="slider"
+                min="0"
+                max="100"
+                value="{{bgMaskOpacity}}"
+                activeColor="#1769e0"
+                bindchange="onMaskOpacityChange"
+            />
+        </view>
+        <view class="field">
+            <text class="field-label">卡片透明度 {{cardOpacity}}%</text>
+            <slider
+                class="slider"
+                min="0"
+                max="100"
+                value="{{cardOpacity}}"
+                activeColor="#1769e0"
+                bindchange="onCardOpacityChange"
+            />
+        </view>
+        <button class="btn-primary save-btn" loading="{{saving}}" bindtap="handleSaveSettings">保存设置</button>
+    </view>
+
+    <!-- 数据管理 -->
+    <view class="section card">
+        <text class="section-title">数据管理</text>
+        <view class="action-grid">
+            <button class="btn-ghost" bindtap="handleExport">导出 CSV</button>
+            <button class="btn-ghost" bindtap="handleImport">导入 CSV</button>
+            <button class="btn-ghost" bindtap="handleBackup">备份 JSON</button>
+            <button class="btn-ghost" bindtap="handleRestore">恢复备份</button>
+        </view>
+        <text class="hint">导入支持追加或替换两种模式，可在导入时选择。</text>
+    </view>
+
+    <!-- 背景音乐 -->
+    <view class="section card">
+        <text class="section-title">背景音乐</text>
+        <view class="action-grid">
+            <button class="btn-ghost" bindtap="toggleMusic">{{musicPlaying ? '暂停' : '播放'}}</button>
+            <button class="btn-ghost" bindtap="nextTrack">下一首</button>
+        </view>
+        <text class="hint">当前：{{currentTrackName}}</text>
+        <slider
+            class="slider"
+            min="0"
+            max="100"
+            value="{{volume}}"
+            activeColor="#1769e0"
+            bindchange="onVolumeChange"
+        />
+    </view>
+
+    <view class="section card">
+        <text class="section-title">账号</text>
+        <button class="btn-danger" bindtap="handleLogout">退出登录</button>
+    </view>
+</view>

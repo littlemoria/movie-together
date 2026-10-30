@@ -1,0 +1,119 @@
+.page {
+    box-sizing: border-box;
+    min-height: 100vh;
+    padding: 32rpx;
+}
+
+.summary {
+    display: flex;
+    padding: 40rpx 32rpx;
+    background: #1f2329;
+    border-radius: 24rpx;
+    color: #ffffff;
+}
+
+.summary-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.summary-value {
+    font-size: 48rpx;
+    font-weight: 700;
+}
+
+.summary-label {
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: #b0b6c0;
+}
+
+.quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 24rpx 0;
+}
+
+.quick-actions button {
+    flex: 1;
+    min-width: 160rpx;
+    margin: 0 12rpx 16rpx 0;
+}
+
+.quick-actions button:nth-child(4n) {
+    margin-right: 0;
+}
+
+.section-title {
+    display: block;
+    margin-bottom: 20rpx;
+    font-size: 32rpx;
+    font-weight: 600;
+}
+
+.state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 80rpx 0;
+}
+
+.state-text {
+    font-size: 28rpx;
+    color: #646a73;
+    text-align: center;
+}
+
+.recent-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.recent-item {
+    display: flex;
+    align-items: center;
+    padding: 20rpx;
+    margin-bottom: 20rpx;
+}
+
+.recent-poster {
+    width: 120rpx;
+    height: 170rpx;
+    border-radius: 12rpx;
+    background: #e5e8eb;
+}
+
+.recent-poster-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44rpx;
+    background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+}
+
+.recent-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-left: 24rpx;
+    min-width: 0;
+}
+
+.recent-name {
+    font-size: 32rpx;
+    font-weight: 600;
+}
+
+.recent-meta {
+    margin-top: 10rpx;
+    font-size: 24rpx;
+    color: #646a73;
+}
+
+.recent-genre {
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: #1769e0;
+}

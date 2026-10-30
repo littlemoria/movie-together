@@ -1,0 +1,84 @@
+.page {
+    box-sizing: border-box;
+    min-height: 100vh;
+    padding: 32rpx;
+}
+
+.summary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40rpx;
+    background: #1f2329;
+    border-radius: 24rpx;
+    color: #ffffff;
+}
+
+.summary-value {
+    font-size: 48rpx;
+    font-weight: 700;
+}
+
+.summary-label {
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: #b0b6c0;
+}
+
+.achievement-grid {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 24rpx;
+}
+
+.achievement-card {
+    box-sizing: border-box;
+    width: calc(50% - 12rpx);
+    margin: 0 24rpx 24rpx 0;
+    padding: 32rpx 24rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0.55;
+}
+
+.achievement-card:nth-child(2n) {
+    margin-right: 0;
+}
+
+.achievement-card.unlocked {
+    opacity: 1;
+    border-color: #ffd591;
+    background: linear-gradient(160deg, #fffbf0, #ffffff);
+}
+
+.achievement-icon {
+    font-size: 64rpx;
+}
+
+.achievement-name {
+    margin-top: 16rpx;
+    font-size: 30rpx;
+    font-weight: 600;
+}
+
+.achievement-desc {
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: #646a73;
+    text-align: center;
+}
+
+.achievement-state {
+    margin-top: 16rpx;
+    padding: 4rpx 20rpx;
+    border-radius: 999rpx;
+    background: #f2f3f5;
+    color: #646a73;
+    font-size: 22rpx;
+}
+
+.achievement-card.unlocked .achievement-state {
+    background: #fff1e6;
+    color: #d46b08;
+}

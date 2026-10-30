@@ -20,6 +20,9 @@ env.js
 .vscode/
 .idea/
 
+# 微信开发者工具本地配置（不提交）
+miniprogram/project.private.config.json
+
 # WorkBuddy 项目记忆数据（不提交到仓库）
 .workbuddy/
 

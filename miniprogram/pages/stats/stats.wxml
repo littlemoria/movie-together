@@ -1,0 +1,87 @@
+<view class="page">
+    <view wx:if="{{loading}}" class="state">
+        <text class="state-text">加载中…</text>
+    </view>
+
+    <view wx:else>
+        <view class="stats-grid">
+            <view class="stat card">
+                <text class="stat-value">{{totalCount}}</text>
+                <text class="stat-label">观影次数</text>
+            </view>
+            <view class="stat card">
+                <text class="stat-value">{{totalHours}}</text>
+                <text class="stat-label">累计小时</text>
+            </view>
+            <view class="stat card">
+                <text class="stat-value">{{avgMinutes}}</text>
+                <text class="stat-label">平均分钟</text>
+            </view>
+        </view>
+
+        <!-- 类型分布 -->
+        <view class="section card" wx:if="{{genreStats.length}}">
+            <text class="section-title">类型分布</text>
+            <view class="genre-list">
+                <view class="genre-item" wx:for="{{genreStats}}" wx:key="name">
+                    <text class="genre-name">{{item.name}}</text>
+                    <view class="genre-bar-wrap">
+                        <view class="genre-bar" style="width: {{item.percent}}%; background: {{item.color}};"></view>
+                    </view>
+                    <text class="genre-count">{{item.count}}</text>
+                </view>
+            </view>
+        </view>
+
+        <!-- 月度观影 -->
+        <view class="section card" wx:if="{{monthlyBars.length}}">
+            <text class="section-title">月度观影（近{{monthCount}}月）</text>
+            <view class="month-list">
+                <view class="month-item" wx:for="{{monthlyBars}}" wx:key="key">
+                    <text class="month-label">{{item.label}}</text>
+                    <view class="month-bar-wrap">
+                        <view class="month-bar" style="width: {{item.percent}}%;"></view>
+                    </view>
+                    <text class="month-count">{{item.count}}</text>
+                </view>
+            </view>
+        </view>
+
+        <!-- 观影日历 -->
+        <view class="section card" wx:if="{{calendar.length}}">
+            <text class="section-title">观影日历 · {{calendarTitle}}</text>
+            <view class="calendar">
+                <view
+                    class="calendar-cell level-{{item.level}}"
+                    wx:for="{{calendar}}"
+                    wx:key="key"
+                >{{item.day}}</view>
+            </view>
+            <view class="calendar-legend">
+                <text class="legend-text">少</text>
+                <view class="calendar-cell level-0 legend-cell"></view>
+                <view class="calendar-cell level-1 legend-cell"></view>
+                <view class="calendar-cell level-2 legend-cell"></view>
+                <view class="calendar-cell level-3 legend-cell"></view>
+                <view class="calendar-cell level-4 legend-cell"></view>
+                <text class="legend-text">多</text>
+            </view>
+        </view>
+
+        <!-- 月度明细 -->
+        <view class="section card" wx:if="{{monthDetail.length}}">
+            <text class="section-title">月度明细</text>
+            <view class="detail-month" wx:for="{{monthDetail}}" wx:key="key">
+                <text class="detail-month-label">{{item.label}}</text>
+                <view class="detail-item" wx:for="{{item.items}}" wx:for-item="movie" wx:key="id">
+                    <text class="detail-item-name">{{movie.movie_name}}</text>
+                    <text class="detail-item-duration">{{movie.duration}}分钟</text>
+                </view>
+            </view>
+        </view>
+
+        <view wx:if="{{!genreStats.length && !monthlyBars.length}}" class="empty">
+            <text>暂无统计数据</text>
+        </view>
+    </view>
+</view>

@@ -1,0 +1,49 @@
+page {
+    min-height: 100%;
+    background: #f5f7fa;
+    color: #1f2329;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}
+
+button {
+    border-radius: 12rpx;
+}
+
+/* 通用按钮 */
+.btn-primary {
+    background: #1769e0;
+    color: #ffffff;
+    font-size: 30rpx;
+}
+
+.btn-primary::after {
+    border: none;
+}
+
+.btn-ghost {
+    background: #f2f3f5;
+    color: #1f2329;
+    font-size: 30rpx;
+}
+
+.btn-ghost::after {
+    border: none;
+}
+
+.btn-danger {
+    background: #fff;
+    color: #d93026;
+    font-size: 30rpx;
+}
+
+.btn-danger::after {
+    border: 1rpx solid #ffd8d6;
+}
+
+/* 卡片 */
+.card {
+    box-sizing: border-box;
+    background: #ffffff;
+    border: 2rpx solid #e5e8eb;
+    border-radius: 24rpx;
+}

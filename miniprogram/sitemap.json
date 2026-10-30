@@ -1,0 +1,9 @@
+{
+  "desc": "CineMemo 小程序站点地图",
+  "rules": [
+    {
+      "action": "disallow",
+      "page": "*"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+<view class="page">
+    <view class="summary">
+        <view class="summary-item">
+            <text class="summary-value">{{totalCount}}</text>
+            <text class="summary-label">次观影</text>
+        </view>
+        <view class="summary-item">
+            <text class="summary-value">{{totalHours}}</text>
+            <text class="summary-label">小时</text>
+        </view>
+        <view class="summary-item">
+            <text class="summary-value">{{totalMinutes}}</text>
+            <text class="summary-label">分钟</text>
+        </view>
+    </view>
+
+    <view class="quick-actions">
+        <button class="btn-primary" bindtap="goMovies">观影记录</button>
+        <button class="btn-ghost" bindtap="goWishlist">想看清单</button>
+        <button class="btn-ghost" bindtap="goAchievements">成就</button>
+        <button class="btn-ghost" bindtap="goStats">统计</button>
+    </view>
+
+    <view class="section">
+        <text class="section-title">最近观影</text>
+
+        <view wx:if="{{loading}}" class="state">
+            <text class="state-text">加载中…</text>
+        </view>
+
+        <view wx:elif="{{!recent.length}}" class="state">
+            <text class="state-text">还没有记录，开始你们的第一次吧～</text>
+        </view>
+
+        <view wx:else class="recent-list">
+            <view class="recent-item card" wx:for="{{recent}}" wx:key="id" data-id="{{item.id}}" bindtap="openDetail">
+                <image wx:if="{{item.poster}}" class="recent-poster" src="{{item.poster}}" mode="aspectFill" />
+                <view wx:else class="recent-poster recent-poster-empty">🎬</view>
+                <view class="recent-info">
+                    <text class="recent-name">{{item.movie_name}}</text>
+                    <text class="recent-meta">{{item.dateText}} · {{item.durationText}}</text>
+                    <text wx:if="{{item.genreText}}" class="recent-genre">{{item.genreText}}</text>
+                </view>
+            </view>
+        </view>
+    </view>
+</view>
