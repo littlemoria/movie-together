@@ -37,7 +37,8 @@ const Config = {
     { name: "Hedwig's Theme - John Williams", url: 'http://music.163.com/song/media/outer/url?id=5197491.mp3' },
     { name: 'One Summer\'s Day', url: 'http://music.163.com/song/media/outer/url?id=1867108465.mp3' },
     { name: '儿时的夏日 - 余日秋山', url: 'http://music.163.com/song/media/outer/url?id=467744316.mp3' },
-    { name: 'Summer - 久石让', url: 'http://music.163.com/song/media/outer/url?id=1867107328.mp3' }
+    { name: 'Summer - 久石让', url: 'http://music.163.com/song/media/outer/url?id=1867107328.mp3' },
+    { name: '一程山路 - 毛不易', url: 'http://cdn5.lizhi.fm/audio/2019/01/04/2713052851351894534_hd.mp3' }
   ],
 
   // 默认类型定义
