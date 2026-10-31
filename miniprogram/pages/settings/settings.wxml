@@ -76,6 +76,12 @@
         <button class="btn-danger" bindtap="handleLogout">退出登录</button>
     </view>
 
+    <view class="section card">
+        <text class="section-title">隐私</text>
+        <text class="hint">本小程序仅收集你主动输入的邮箱地址用于账号登录，不收集手机号、位置、相册等其他信息，也不与第三方共享。</text>
+        <button class="btn-ghost" bindtap="showPrivacyPolicy">查看隐私保护指引</button>
+    </view>
+
     <!-- 全局背景音乐悬浮球 -->
     <music-player />
 </view>

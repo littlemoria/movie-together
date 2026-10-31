@@ -3,6 +3,17 @@ const { saveSettings, loadMovies, saveMovie, deleteMovie } = require('../../lib/
 const { parseCSV, toCSV } = require('../../lib/csv.js');
 const { Music } = require('../../lib/music.js');
 
+// 隐私保护指引内置文本。内容需与微信后台「用户隐私保护指引」声明的
+// 每一条对应，后台会检测小程序内是否存在可查看隐私政策的入口。
+const PRIVACY_TEXT = [
+    '一、收集的信息：仅收集你主动输入的邮箱地址，用于账号登录与身份验证。',
+    '不收集手机号、位置、相册、摄像头、麦克风等任何其他信息。',
+    '二、用途：邮箱地址仅用于识别账号本人，不用于其他用途。',
+    '三、存储：存储于开发者自有云数据库（境内节点），账号存续期间保存，注销后删除。',
+    '四、共享：不与任何第三方共享。',
+    '五、你的权利：可随时通过「退出登录」清除本地登录状态，或联系开发者删除账号数据。',
+].join('\n');
+
 Page({
     data: {
         theme: 'light',
@@ -299,5 +310,37 @@ Page({
                 wx.reLaunch({ url: '/pages/login/login' });
             },
         });
+    },
+
+    // ---------- 隐私 ----------
+
+    /**
+     * 展示隐私保护指引。
+     * 微信后台要求：声明了隐私收集项的小程序必须提供查看入口，
+     * 否则提审时会被判定「未声明隐私保护指引」而驳回。
+     * 优先使用官方隐私协议组件（openPrivacyContract），
+     * 组件不可用时降级为弹窗展示内置文本。
+     */
+    showPrivacyPolicy() {
+        const openContract = () => {
+            if (wx.openPrivacyContract) {
+                wx.openPrivacyContract({
+                    fail: () => wx.showModal({ title: '隐私保护指引', content: PRIVACY_TEXT, showCancel: false }),
+                });
+                return;
+            }
+            wx.showModal({ title: '隐私保护指引', content: PRIVACY_TEXT, showCancel: false });
+        };
+
+        // 需用户同意隐私协议的场景：调用官方组件前先确认已授权
+        if (wx.requirePrivacyAuthorize) {
+            wx.requirePrivacyAuthorize({
+                onNeedPrivacyAuthorization: openContract,
+                success: openContract,
+                fail: openContract,
+            });
+            return;
+        }
+        openContract();
     },
 });
