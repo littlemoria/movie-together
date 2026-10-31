@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "CineMemo",
-  "usingComponents": {}
+  "usingComponents": {
+    "music-player": "/components/music-player/music-player"
+  }
 }

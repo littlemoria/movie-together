@@ -28,4 +28,7 @@
         >登录</button>
         <text wx:if="{{error}}" class="error">{{error}}</text>
     </view>
+
+    <!-- 全局背景音乐悬浮球 -->
+    <music-player />
 </view>

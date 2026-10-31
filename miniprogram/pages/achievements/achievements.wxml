@@ -16,4 +16,7 @@
             <text class="achievement-state">{{item.unlocked ? '已解锁' : '未解锁'}}</text>
         </view>
     </view>
+
+    <!-- 全局背景音乐悬浮球 -->
+    <music-player />
 </view>

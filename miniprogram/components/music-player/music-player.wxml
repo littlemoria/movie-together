@@ -1,0 +1,42 @@
+<!-- 悬浮音乐球：常驻右下角，点击展开歌单面板 -->
+<view class="music-root" style="bottom: {{bottom}}rpx;">
+    <!-- 展开的面板 -->
+    <view wx:if="{{panelOpen}}" class="music-panel">
+        <view class="music-panel-header">
+            <text class="music-panel-title">背景音乐</text>
+            <text class="music-panel-close" bindtap="togglePanel">✕</text>
+        </view>
+
+        <view class="music-track-list">
+            <view
+                class="music-track {{trackIndex === index ? 'active' : ''}}"
+                wx:for="{{tracks}}"
+                wx:key="url"
+                data-index="{{index}}"
+                bindtap="playTrack"
+            >
+                <text class="music-track-name">{{item.name}}</text>
+                <text class="music-track-status">{{trackIndex === index ? (playing ? '⏸' : '▶') : '▶'}}</text>
+            </view>
+        </view>
+
+        <view class="music-volume-row">
+            <button class="music-toggle" bindtap="toggleMusic">{{playing ? '🔊' : '🔇'}}</button>
+            <slider
+                class="music-volume-slider"
+                min="0"
+                max="100"
+                value="{{volume}}"
+                activeColor="#1769e0"
+                block-size="14"
+                bindchange="onVolumeChange"
+            />
+        </view>
+    </view>
+
+    <!-- 悬浮球 -->
+    <view class="music-fab" bindtap="togglePanel">
+        <text class="music-fab-icon">{{playing ? '🎵' : '🎶'}}</text>
+        <view wx:if="{{playing}}" class="music-fab-badge"></view>
+    </view>
+</view>

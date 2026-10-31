@@ -84,4 +84,7 @@
             <text>暂无统计数据</text>
         </view>
     </view>
+
+    <!-- 全局背景音乐悬浮球 -->
+    <music-player />
 </view>

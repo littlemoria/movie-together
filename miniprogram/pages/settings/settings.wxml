@@ -74,4 +74,7 @@
         <text class="section-title">账号</text>
         <button class="btn-danger" bindtap="handleLogout">退出登录</button>
     </view>
+
+    <!-- 全局背景音乐悬浮球 -->
+    <music-player />
 </view>

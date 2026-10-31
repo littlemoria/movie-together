@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "设置",
-  "usingComponents": {}
+  "usingComponents": {
+    "music-player": "/components/music-player/music-player"
+  }
 }

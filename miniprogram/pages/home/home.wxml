@@ -44,4 +44,7 @@
             </view>
         </view>
     </view>
+
+    <!-- 全局背景音乐悬浮球 -->
+    <music-player />
 </view>

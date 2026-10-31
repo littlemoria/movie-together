@@ -1,17 +1,7 @@
 const { Store } = require('../../lib/store.js');
 const { saveSettings, loadMovies, saveMovie, deleteMovie } = require('../../lib/service.js');
 const { parseCSV, toCSV } = require('../../lib/csv.js');
-
-// 背景音乐曲目（与网页版一致；需 https 且域名加入合法域名白名单）
-const MUSIC_TRACKS = [
-    { name: '萤火之森 - CMJ', url: 'https://music.163.com/song/media/outer/url?id=1415706303.mp3' },
-    { name: 'Mia And Sebastian - Sergio Blanco', url: 'https://music.163.com/song/media/outer/url?id=2130777132.mp3' },
-    { name: "Hedwig's Theme - John Williams", url: 'https://music.163.com/song/media/outer/url?id=5197491.mp3' },
-    { name: "One Summer's Day", url: 'https://music.163.com/song/media/outer/url?id=1867108465.mp3' },
-    { name: '儿时的夏日 - 余日秋山', url: 'https://music.163.com/song/media/outer/url?id=467744316.mp3' },
-    { name: 'Summer - 久石让', url: 'https://music.163.com/song/media/outer/url?id=1867107328.mp3' },
-    { name: '一程山路 - 毛不易', url: 'https://cdn5.lizhi.fm/audio/2019/01/04/2713052851351894534_hd.mp3' },
-];
+const { Music } = require('../../lib/music.js');
 
 Page({
     data: {
@@ -21,14 +11,23 @@ Page({
         cardOpacity: 100,
         saving: false,
         musicPlaying: false,
-        currentTrackName: MUSIC_TRACKS[0].name,
-        volume: 60,
+        currentTrackName: '',
+        volume: 12,
     },
 
     onLoad() {
-        this.trackIndex = 0;
-        this.audio = null;
-        this.initAudio();
+        // 音频实例由全局 Music 管理器持有，跨页面不中断。
+        this.unsubscribeMusic = Music.subscribe((state) => {
+            this.setData({
+                musicPlaying: state.playing,
+                currentTrackName: state.trackName,
+                volume: state.volume,
+            });
+        });
+    },
+
+    onUnload() {
+        if (this.unsubscribeMusic) this.unsubscribeMusic();
     },
 
     onShow() {
@@ -44,13 +43,6 @@ Page({
             cardOpacity: settings.cardOpacity === undefined ? 100 : settings.cardOpacity,
         });
         this.applyTheme(settings.theme || 'light');
-    },
-
-    onUnload() {
-        if (this.audio) {
-            this.audio.destroy();
-            this.audio = null;
-        }
     },
 
     // ---------- 主题与背景 ----------
@@ -276,47 +268,16 @@ Page({
 
     // ---------- 背景音乐 ----------
 
-    initAudio() {
-        this.audio = wx.createInnerAudioContext();
-        this.audio.volume = this.data.volume / 100;
-        this.audio.onError((err) => {
-            this.setData({ musicPlaying: false });
-            wx.showToast({
-                title: '音乐加载失败，请确认域名已加入合法域名白名单',
-                icon: 'none',
-            });
-        });
-        this.audio.onEnded(() => {
-            this.nextTrack();
-        });
-    },
-
     toggleMusic() {
-        if (!this.audio) return;
-        if (this.data.musicPlaying) {
-            this.audio.pause();
-            this.setData({ musicPlaying: false });
-            return;
-        }
-        const track = MUSIC_TRACKS[this.trackIndex];
-        this.audio.src = track.url;
-        this.audio.play();
-        this.setData({ musicPlaying: true, currentTrackName: track.name });
+        Music.toggle();
     },
 
     nextTrack() {
-        this.trackIndex = (this.trackIndex + 1) % MUSIC_TRACKS.length;
-        const track = MUSIC_TRACKS[this.trackIndex];
-        this.setData({ currentTrackName: track.name });
-        if (this.audio && this.data.musicPlaying) {
-            this.audio.src = track.url;
-            this.audio.play();
-        }
+        Music.playNext();
     },
 
     onVolumeChange(e) {
-        this.setData({ volume: e.detail.value });
-        if (this.audio) this.audio.volume = e.detail.value / 100;
+        Music.setVolume(e.detail.value);
     },
 
     // ---------- 账号 ----------
