@@ -20,7 +20,7 @@ const MUSIC_TRACKS = [
 ];
 
 const VOLUME_KEY = 'music_volume';
-const DEFAULT_VOLUME = 12;
+const DEFAULT_VOLUME = 30;
 
 const Music = {
     audio: null,
@@ -43,7 +43,6 @@ const Music = {
         const audio = wx.createInnerAudioContext();
         audio.volume = this.volume / 100;
         this.audio = audio;
-
         // 播放结束后自动下一首，与网页版一致
         audio.onEnded(() => {
             this.playNext();
@@ -74,10 +73,18 @@ const Music = {
 
     /**
      * 读取本地保存的音量。
+     *
+     * 注意：wx.getStorageSync 对未写入过的 key 返回空字符串 ''，
+     * 而 Number('') === 0，会被下面的数值校验误判为「用户主动设为 0」，
+     * 导致首次进入小程序音量为 0（听不到声音）。因此必须先排除空值。
      */
     loadVolume() {
         try {
             const stored = wx.getStorageSync(VOLUME_KEY);
+            // 空字符串 / null / undefined 都表示「从未设置过」，走默认值
+            if (stored === '' || stored === null || stored === undefined) {
+                return DEFAULT_VOLUME;
+            }
             const value = Number(stored);
             if (!Number.isNaN(value) && value >= 0 && value <= 100) {
                 return value;
@@ -112,7 +119,7 @@ const Music = {
 
     getState() {
         return {
-            playing: !this.paused && !this.muted,
+            playing: !this.paused,
             paused: this.paused,
             muted: this.muted,
             volume: this.volume,
@@ -120,6 +127,14 @@ const Music = {
             trackName: this.trackIndex >= 0 ? MUSIC_TRACKS[this.trackIndex].name : '',
             tracks: MUSIC_TRACKS,
         };
+    },
+
+    /**
+     * 把音量应用到音频实例。静音时置 0，否则用用户设定的音量。
+     */
+    applyVolume() {
+        if (!this.audio) return;
+        this.audio.volume = this.muted ? 0 : this.volume / 100;
     },
 
     /**
@@ -132,35 +147,43 @@ const Music = {
         const track = MUSIC_TRACKS[index];
         this.trackIndex = index;
         this.audio.src = track.url;
-        this.audio.volume = this.volume / 100;
+        this.applyVolume();
         this.audio.play();
         this.paused = false;
-        this.muted = false;
         this.emit();
     },
 
     /**
-     * 播放/暂停切换（对应网页版 toggleMusic）。
+     * 播放/暂停切换（对应网页版 toggleMusic 的播放语义）。
      */
     toggle() {
         if (!this.audio) this.init();
 
         // 还没选曲时，随机播一首（与网页版一致）
         if (this.trackIndex === -1) {
-            this.muted = false;
             this.paused = false;
             this.playTrack(Math.floor(Math.random() * MUSIC_TRACKS.length));
             return;
         }
 
-        if (this.paused || this.muted) {
-            this.muted = false;
+        if (this.paused) {
             this.audio.play();
             this.paused = false;
         } else {
             this.audio.pause();
             this.paused = true;
         }
+        this.emit();
+    },
+
+    /**
+     * 静音/取消静音。静音不改变播放状态，仅把实际音量置 0，
+     * 取消静音时恢复用户设定的音量。
+     */
+    toggleMute() {
+        if (!this.audio) this.init();
+        this.muted = !this.muted;
+        this.applyVolume();
         this.emit();
     },
 
@@ -178,7 +201,7 @@ const Music = {
     setVolume(value) {
         const volume = Math.max(0, Math.min(100, Number(value) || 0));
         this.volume = volume;
-        if (this.audio) this.audio.volume = volume / 100;
+        this.applyVolume();
         try {
             wx.setStorageSync(VOLUME_KEY, volume);
         } catch (e) {
@@ -189,7 +212,10 @@ const Music = {
 
     /**
      * 首次用户交互后自动随机播放一首（对齐网页版的 document click once 逻辑）。
-     * 微信小程序禁止无用户手势的自动播放，因此必须挂在 touch 事件上。
+     *
+     * 微信小程序禁止无用户手势的自动播放，因此必须挂在 touch 事件上，
+     * 并且 play() 要在 touch 回调的同步调用栈内触发——若用 setTimeout
+     * 延迟就已经脱离手势上下文，音频会被平台拒绝播放。
      */
     armAutoPlay() {
         if (this.autoPlayArmed) return;
@@ -197,12 +223,10 @@ const Music = {
 
         const start = () => {
             wx.offTouchStart(start);
-            // 首次交互后延迟一点，避开手势期间的音频策略限制
-            setTimeout(() => {
-                if (this.trackIndex === -1 && !this.muted) {
-                    this.playTrack(Math.floor(Math.random() * MUSIC_TRACKS.length));
-                }
-            }, 100);
+            // 同步调用 play()，保持在用户手势的调用栈内
+            if (this.trackIndex === -1) {
+                this.playTrack(Math.floor(Math.random() * MUSIC_TRACKS.length));
+            }
         };
 
         wx.onTouchStart(start);

@@ -57,6 +57,7 @@
         <text class="section-title">背景音乐</text>
         <view class="action-grid">
             <button class="btn-ghost" bindtap="toggleMusic">{{musicPlaying ? '暂停' : '播放'}}</button>
+            <button class="btn-ghost" bindtap="toggleMute">{{musicMuted ? '取消静音' : '静音'}}</button>
             <button class="btn-ghost" bindtap="nextTrack">下一首</button>
         </view>
         <text class="hint">当前：{{currentTrackName}}</text>

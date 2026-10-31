@@ -27,6 +27,7 @@
             bindtap="handleLogin"
         >登录</button>
         <text wx:if="{{error}}" class="error">{{error}}</text>
+        <text class="hint">账号由管理员在 Supabase 控制台创建，如无法登录请联系管理员重置密码。</text>
     </view>
 
     <!-- 全局背景音乐悬浮球 -->

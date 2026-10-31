@@ -47,6 +47,7 @@
   <script src="js/repository.js"></script>
   <script src="js/lazyload.js"></script>
   <script src="js/utils.js"></script>
+  <script src="js/auth-errors.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/offline.js"></script>
   <script src="js/cache.js"></script>
@@ -112,7 +113,7 @@
         </div>
         <div class="music-volume-row">
           <button class="music-toggle" id="music-toggle-btn" onclick="App.toggleMusic()">🔇</button>
-          <input type="range" id="volume-slider" min="0" max="100" value="12" onchange="App.setVolume(this.value)">
+          <input type="range" id="volume-slider" min="0" max="100" value="30" onchange="App.setVolume(this.value)">
         </div>
       </div>
     </div>
@@ -421,6 +422,7 @@
             <input type="email" id="admin-email" placeholder="邮箱" autocomplete="username">
             <input type="password" id="admin-password" placeholder="密码" autocomplete="current-password">
             <button class="btn-primary" onclick="App.login()">登录</button>
+            <p class="login-tip" style="font-size:12px;margin-top:8px;">账号由管理员在 Supabase 控制台创建，如无法登录请联系管理员重置密码。</p>
           </div>
           <div id="logged-in-status" style="display:none;">
             <p class="login-success">✅ 已登录</p>

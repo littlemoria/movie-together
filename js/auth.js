@@ -58,7 +58,7 @@ const Auth = {
     try {
       const { data, error } = await API.client.auth.signInWithPassword({ email, password });
       if (error) {
-        Utils.showToast('登录失败：' + error.message, 'error');
+        Utils.showToast(describeAuthError(error), 'error');
         return false;
       }
       Store.setSession(data.session);

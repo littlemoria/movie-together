@@ -11,8 +11,9 @@ Page({
         cardOpacity: 100,
         saving: false,
         musicPlaying: false,
+        musicMuted: false,
         currentTrackName: '',
-        volume: 12,
+        volume: 30,
     },
 
     onLoad() {
@@ -20,6 +21,7 @@ Page({
         this.unsubscribeMusic = Music.subscribe((state) => {
             this.setData({
                 musicPlaying: state.playing,
+                musicMuted: state.muted,
                 currentTrackName: state.trackName,
                 volume: state.volume,
             });
@@ -270,6 +272,10 @@ Page({
 
     toggleMusic() {
         Music.toggle();
+    },
+
+    toggleMute() {
+        Music.toggleMute();
     },
 
     nextTrack() {

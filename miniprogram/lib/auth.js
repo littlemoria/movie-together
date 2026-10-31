@@ -4,6 +4,7 @@
  * 会话缓存在 wx 本地存储，冷启动可恢复。
  */
 const { Config } = require('./config.js');
+const { describeAuthError } = require('./auth-errors.js');
 
 const SESSION_KEY = 'cinememo_session';
 
@@ -25,9 +26,15 @@ function requestAuth(path, body) {
                 if (res.statusCode >= 200 && res.statusCode < 300) {
                     resolve(res.data);
                 } else {
-                    const msg = (res.data && (res.data.msg || res.data.error_description || res.data.message))
-                        || '登录失败';
-                    reject(new Error(msg));
+                    // 统一转成可读中文提示，原始错误码保留在 error.code 上便于排查
+                    const payload = res.data || {};
+                    const message = describeAuthError({
+                        error_code: payload.error_code || payload.code,
+                        msg: payload.msg || payload.error_description || payload.message,
+                    });
+                    const error = new Error(message);
+                    error.code = payload.error_code || payload.code || '';
+                    reject(error);
                 }
             },
             fail(err) {

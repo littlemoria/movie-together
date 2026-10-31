@@ -104,6 +104,50 @@ test('setVolume 限制在 0-100 并持久化', () => {
     assert.strictEqual(storage.music_volume, 35);
 });
 
+test('loadVolume：从未设置过时返回默认音量 30，而非被空字符串归零', () => {
+    delete storage.music_volume;
+    assert.strictEqual(Music.loadVolume(), 30, '空存储应回落到默认值');
+});
+
+test('loadVolume：用户主动存 0 时应尊重该值', () => {
+    storage.music_volume = 0;
+    assert.strictEqual(Music.loadVolume(), 0, '显式设置的 0 应被保留');
+    delete storage.music_volume;
+});
+
+test('loadVolume：非法存储值回落到默认值', () => {
+    storage.music_volume = 'abc';
+    assert.strictEqual(Music.loadVolume(), 30);
+    storage.music_volume = 500;
+    assert.strictEqual(Music.loadVolume(), 30);
+    delete storage.music_volume;
+});
+
+test('toggleMute 真实静音：音量置 0，取消后恢复用户音量', () => {
+    Music.audio = null;
+    Music.init();
+    Music.setVolume(40);
+    Music.muted = false;
+
+    Music.toggleMute();
+    assert.strictEqual(Music.muted, true, '应进入静音态');
+    assert.strictEqual(Music.audio.volume, 0, '静音时实际音量应为 0');
+
+    Music.toggleMute();
+    assert.strictEqual(Music.muted, false, '应退出静音态');
+    assert.strictEqual(Music.audio.volume, 0.4, '取消静音应恢复用户设定的音量');
+});
+
+test('静音状态下播放状态不受影响（静音 ≠ 暂停）', () => {
+    Music.audio = null;
+    Music.init();
+    Music.playTrack(0);
+    Music.muted = true;
+
+    assert.strictEqual(Music.getState().playing, true, '静音时仍算播放中');
+    assert.strictEqual(Music.getState().paused, false);
+});
+
 test('subscribe 立即推送当前状态，unsubscribe 后不再收到', () => {
     const seen = [];
     const un = Music.subscribe((s) => seen.push(s));
@@ -125,20 +169,29 @@ test('音频结束后自动播下一首', () => {
     assert.strictEqual(Music.trackIndex, 1, 'ended 应触发下一首');
 });
 
-test('armAutoPlay 在首次触摸后随机播放，且只触发一次', () => {
+test('armAutoPlay 在首次触摸后同步播放，且只触发一次', () => {
+    Music.audio = null;
+    Music.init();
     Music.trackIndex = -1;
+    Music.paused = true;
     Music.autoPlayArmed = false;
     Music.armAutoPlay();
     assert.ok(global.__touchHandler, '应注册触摸监听');
 
+    // 必须在触摸回调的同步调用栈内触发播放，不能用 setTimeout 延迟
     global.__touchHandler();
-    // 内部有 100ms 延迟
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            assert.ok(Music.trackIndex >= 0, '首次触摸后应自动播放一首');
-            const after = Music.trackIndex;
-            assert.strictEqual(global.__touchHandler, null, '监听应已解绑');
-            resolve();
-        }, 150);
-    });
+    assert.ok(Music.trackIndex >= 0, '首次触摸后应立即自动播放一首');
+    assert.strictEqual(Music.paused, false, '应处于播放态');
+    assert.strictEqual(global.__touchHandler, null, '监听应已解绑');
+});
+
+test('armAutoPlay 不会覆盖用户已手动选择的曲目', () => {
+    Music.audio = null;
+    Music.init();
+    Music.playTrack(2);
+    Music.autoPlayArmed = false;
+    Music.armAutoPlay();
+
+    global.__touchHandler();
+    assert.strictEqual(Music.trackIndex, 2, '用户已选曲时不应被自动播放覆盖');
 });

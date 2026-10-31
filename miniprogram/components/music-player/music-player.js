@@ -13,7 +13,7 @@ Component({
         panelOpen: false,
         playing: false,
         muted: false,
-        volume: 12,
+        volume: 30,
         trackIndex: -1,
         trackName: '',
         tracks: [],
@@ -45,6 +45,10 @@ Component({
 
         toggleMusic() {
             Music.toggle();
+        },
+
+        toggleMute() {
+            Music.toggleMute();
         },
 
         playTrack(e) {

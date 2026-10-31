@@ -21,7 +21,8 @@
         </view>
 
         <view class="music-volume-row">
-            <button class="music-toggle" bindtap="toggleMusic">{{playing ? '🔊' : '🔇'}}</button>
+            <button class="music-toggle" bindtap="toggleMusic">{{playing ? '⏸' : '▶'}}</button>
+            <button class="music-mute" bindtap="toggleMute">{{muted ? '🔇' : '🔊'}}</button>
             <slider
                 class="music-volume-slider"
                 min="0"

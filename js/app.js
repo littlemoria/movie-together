@@ -182,7 +182,7 @@ const App = {
     
     // 设置初始音量
     const volumeSlider = document.getElementById('volume-slider');
-    audio.volume = volumeSlider ? volumeSlider.value / 100 : 0.12;
+    audio.volume = volumeSlider ? volumeSlider.value / 100 : 0.30;
     appState.musicMuted = false;
     
     // 音乐播放结束自动播放下一首
