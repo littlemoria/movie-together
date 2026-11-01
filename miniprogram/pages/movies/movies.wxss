@@ -393,3 +393,118 @@
     color: #646a73;
     text-align: left;
 }
+
+/* ---------- 表单分组（对齐网页版 form-group） ---------- */
+.form-group {
+    margin-bottom: 28rpx;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 12rpx;
+    font-size: 26rpx;
+    color: #646a73;
+}
+
+.form-required {
+    color: #d93026;
+}
+
+.form-hint {
+    font-size: 24rpx;
+    color: #8f959e;
+}
+
+/* 分组内的输入框：去掉自身下边距，由 form-group 统一控制间距 */
+.input-group {
+    margin-bottom: 0;
+}
+
+/* 日期选择器 */
+.picker-wrapper {
+    display: block;
+}
+
+.picker-value {
+    display: flex;
+    align-items: center;
+    line-height: 88rpx;
+    color: #1f2329;
+}
+
+.picker-placeholder {
+    color: #8f959e;
+}
+
+/* 类型多选 */
+.genre-grid {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.genre-chip {
+    padding: 12rpx 24rpx;
+    margin: 0 16rpx 16rpx 0;
+    border: 2rpx solid #e5e8eb;
+    border-radius: 12rpx;
+    background: #f7f8fa;
+    font-size: 26rpx;
+    color: #1f2329;
+}
+
+.genre-chip-active {
+    border-color: #1769e0;
+    background: #eaf2ff;
+    color: #1769e0;
+}
+
+/* 自定义类型添加 */
+.add-genre-row {
+    display: flex;
+    align-items: center;
+    margin-top: 12rpx;
+}
+
+.add-genre-input {
+    flex: 1;
+    box-sizing: border-box;
+}
+
+.add-genre-btn {
+    width: 88rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    margin-left: 16rpx;
+    padding: 0;
+}
+
+/* TMDB 自动带出信息：只读展示 */
+.readonly-box {
+    padding: 20rpx 24rpx;
+    border-radius: 16rpx;
+    background: #f7f8fa;
+}
+
+.readonly-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 12rpx;
+}
+
+.readonly-row:last-child {
+    margin-bottom: 0;
+}
+
+.readonly-key {
+    flex-shrink: 0;
+    width: 80rpx;
+    font-size: 26rpx;
+    color: #8f959e;
+}
+
+.readonly-val {
+    flex: 1;
+    font-size: 26rpx;
+    color: #1f2329;
+    word-break: break-all;
+}

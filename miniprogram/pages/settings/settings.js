@@ -15,6 +15,16 @@ const PRIVACY_TEXT = [
 ].join('\n');
 
 Page({
+    // ---------- 背景音乐 ----------
+
+    /**
+     * 首次触摸兜底：在手势的同步调用栈内解锁音频播放。
+     * 全局 wx.onTouchStart 为主触发路径，这里保证页面级触摸同样能触发。
+     */
+    onFirstTouch() {
+        Music.unlock();
+    },
+
     data: {
         theme: 'light',
         bgImage: '',

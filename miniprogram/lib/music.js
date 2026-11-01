@@ -30,12 +30,27 @@ const Music = {
     volume: DEFAULT_VOLUME,
     listeners: [],
     autoPlayArmed: false,
+    unlocked: false,
     lastError: null,
 
     /**
-     * 初始化音频实例（幂等）。只应在 App.onLaunch 调用一次。
+     * 初始化音频实例（幂等）。
+     *
+     * 注意：不要在 App.onLaunch 里调用。iOS 微信要求音频上下文必须在
+     * 用户手势的同步调用栈内创建，否则 play() 会被判定为「非手势上下文」
+     * 而静默拒播（表现为点了没声音）。这里只做不涉及音频实例的准备，
+     * 真正的实例创建推迟到 ensureAudio()，由首次触摸手势触发。
      */
     init() {
+        this.volume = this.loadVolume();
+        return this.audio;
+    },
+
+    /**
+     * 在用户手势调用栈内创建音频实例（幂等）。
+     * 必须从 touch 事件回调里同步调用。
+     */
+    ensureAudio() {
         if (this.audio) return this.audio;
 
         this.volume = this.loadVolume();
@@ -141,7 +156,7 @@ const Music = {
      * 播放指定曲目。
      */
     playTrack(index) {
-        if (!this.audio) this.init();
+        if (!this.audio) this.ensureAudio();
         if (index < 0 || index >= MUSIC_TRACKS.length) return;
 
         const track = MUSIC_TRACKS[index];
@@ -157,7 +172,7 @@ const Music = {
      * 播放/暂停切换（对应网页版 toggleMusic 的播放语义）。
      */
     toggle() {
-        if (!this.audio) this.init();
+        if (!this.audio) this.ensureAudio();
 
         // 还没选曲时，随机播一首（与网页版一致）
         if (this.trackIndex === -1) {
@@ -181,7 +196,7 @@ const Music = {
      * 取消静音时恢复用户设定的音量。
      */
     toggleMute() {
-        if (!this.audio) this.init();
+        if (!this.audio) this.ensureAudio();
         this.muted = !this.muted;
         this.applyVolume();
         this.emit();
@@ -213,9 +228,13 @@ const Music = {
     /**
      * 首次用户交互后自动随机播放一首（对齐网页版的 document click once 逻辑）。
      *
-     * 微信小程序禁止无用户手势的自动播放，因此必须挂在 touch 事件上，
-     * 并且 play() 要在 touch 回调的同步调用栈内触发——若用 setTimeout
-     * 延迟就已经脱离手势上下文，音频会被平台拒绝播放。
+     * 微信小程序禁止无用户手势的自动播放，因此：
+     * 1. 音频实例必须在手势的同步调用栈内创建（见 ensureAudio 注释），
+     *    否则 iOS 微信会判定为非手势上下文而拒播；
+     * 2. play() 同样要留在该调用栈内，不能用 setTimeout / Promise 延迟。
+     *
+     * 触发方式用 wx.onTouchStart（App 级全局监听）。它与页面 touch 事件
+     * 不同，不受冒泡影响，任何位置的第一次触摸都能捕获。
      */
     armAutoPlay() {
         if (this.autoPlayArmed) return;
@@ -223,13 +242,30 @@ const Music = {
 
         const start = () => {
             wx.offTouchStart(start);
-            // 同步调用 play()，保持在用户手势的调用栈内
-            if (this.trackIndex === -1) {
-                this.playTrack(Math.floor(Math.random() * MUSIC_TRACKS.length));
-            }
+            this.unlock();
         };
 
         wx.onTouchStart(start);
+    },
+
+    /**
+     * 解锁音频播放权限：在用户手势的同步调用栈内创建实例并随机播一首。
+     *
+     * 可被多处调用（全局 touch 监听、页面组件的 touch 事件），
+     * 内部保证只真正播放一次。
+     */
+    unlock() {
+        if (this.unlocked) return false;
+        // 静音状态下不自动播放（用户显式静音过就尊重用户意图）
+        if (this.muted) return false;
+
+        // 关键：实例创建与 play() 都在当前（手势）调用栈内同步完成
+        this.ensureAudio();
+        if (!this.audio) return false;
+
+        this.unlocked = true;
+        this.playTrack(Math.floor(Math.random() * MUSIC_TRACKS.length));
+        return true;
     },
 
     /**

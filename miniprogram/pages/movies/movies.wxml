@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page" bindtouchstart="onFirstTouch">
     <view class="tabs">
         <view class="tab {{mode === 'watched' ? 'active' : ''}}" data-mode="watched" bindtap="switchMode">已看</view>
         <view class="tab {{mode === 'wishlist' ? 'active' : ''}}" data-mode="wishlist" bindtap="switchMode">想看</view>
@@ -91,9 +91,12 @@
             <text class="modal-title">{{editingId ? '编辑记录' : '添加记录'}}</text>
 
             <!-- TMDB 搜索 -->
-            <view class="tmdb-search">
-                <input class="input" placeholder="搜索 TMDB 电影（可选）" value="{{tmdbKeyword}}" bindinput="onTmdbKeywordInput" />
-                <button class="btn-ghost tmdb-btn" loading="{{tmdbLoading}}" bindtap="handleTmdbSearch">搜索</button>
+            <view class="form-group">
+                <text class="form-label">从 TMDB 搜索（可选）</text>
+                <view class="tmdb-search">
+                    <input class="input" placeholder="输入电影名" value="{{tmdbKeyword}}" bindinput="onTmdbKeywordInput" />
+                    <button class="btn-ghost tmdb-btn" loading="{{tmdbLoading}}" bindtap="handleTmdbSearch">搜索</button>
+                </view>
             </view>
 
             <scroll-view wx:if="{{tmdbResults.length}}" class="tmdb-results" scroll-y>
@@ -111,14 +114,77 @@
                 </view>
             </scroll-view>
 
-            <input class="input" placeholder="电影名称" value="{{form.movie_name}}" data-field="movie_name" bindinput="onFieldInput" />
-            <input class="input" placeholder="观影日期 (YYYY-MM-DD)" value="{{form.watch_date}}" data-field="watch_date" bindinput="onFieldInput" />
-            <input class="input" type="number" placeholder="时长（分钟）" value="{{form.duration_minutes}}" data-field="duration_minutes" bindinput="onFieldInput" />
-            <input class="input" placeholder="类型（逗号分隔）" value="{{form.genre}}" data-field="genre" bindinput="onFieldInput" />
-            <input class="input" placeholder="记录人（可选）" value="{{form.created_by}}" data-field="created_by" bindinput="onFieldInput" />
-            <input class="input" type="number" placeholder="评分（可选，0-10）" value="{{form.rating}}" data-field="rating" bindinput="onFieldInput" />
-            <input class="input" placeholder="导演（可选）" value="{{form.director}}" data-field="director" bindinput="onFieldInput" />
-            <input class="input" placeholder="主演（可选）" value="{{form.cast}}" data-field="cast" bindinput="onFieldInput" />
+            <!-- 电影名称 -->
+            <view class="form-group">
+                <text class="form-label">电影名称 <text class="form-required">*</text></text>
+                <input class="input input-group" placeholder="输入电影名" value="{{form.movie_name}}" data-field="movie_name" bindinput="onFieldInput" />
+            </view>
+
+            <!-- 观看日期 -->
+            <view class="form-group">
+                <text class="form-label">观看日期 <text class="form-required">*</text></text>
+                <picker
+                    class="picker-wrapper"
+                    mode="date"
+                    value="{{form.watch_date}}"
+                    start="1900-01-01"
+                    end="2100-12-31"
+                    bindchange="onWatchDateChange"
+                >
+                    <view class="input input-group picker-value {{form.watch_date ? '' : 'picker-placeholder'}}">
+                        <text>{{form.watch_date || '选择观影日期'}}</text>
+                    </view>
+                </picker>
+            </view>
+
+            <!-- 时长 -->
+            <view class="form-group">
+                <text class="form-label">时长（分钟）</text>
+                <input class="input input-group" type="number" placeholder="如：120" value="{{form.duration_minutes}}" data-field="duration_minutes" bindinput="onFieldInput" />
+            </view>
+
+            <!-- 类型（多选） -->
+            <view class="form-group">
+                <text class="form-label">类型（多选）</text>
+                <view class="genre-grid">
+                    <view
+                        class="genre-chip {{form.genres[item.id] ? 'genre-chip-active' : ''}}"
+                        wx:for="{{genreOptions}}"
+                        wx:key="id"
+                        data-id="{{item.id}}"
+                        bindtap="toggleGenre"
+                    >{{item.name}}</view>
+                </view>
+                <view class="add-genre-row">
+                    <input class="input input-group add-genre-input" placeholder="添加自定义类型" value="{{newGenre}}" bindinput="onNewGenreInput" />
+                    <button class="btn-ghost add-genre-btn" bindtap="addCustomGenre">+</button>
+                </view>
+            </view>
+
+            <!-- 记录人 -->
+            <view class="form-group">
+                <text class="form-label">记录人</text>
+                <input class="input input-group" placeholder="谁记录的？" value="{{form.created_by}}" data-field="created_by" bindinput="onFieldInput" />
+            </view>
+
+            <!-- TMDB 自动带出的信息：只读，不可编辑 -->
+            <view class="form-group" wx:if="{{form.director || form.cast || form.rating}}">
+                <text class="form-label">影片信息<text class="form-hint">（由 TMDB 自动带出）</text></text>
+                <view class="readonly-box">
+                    <view class="readonly-row" wx:if="{{form.rating}}">
+                        <text class="readonly-key">评分</text>
+                        <text class="readonly-val">{{form.rating}}/10</text>
+                    </view>
+                    <view class="readonly-row" wx:if="{{form.director}}">
+                        <text class="readonly-key">导演</text>
+                        <text class="readonly-val">{{form.director}}</text>
+                    </view>
+                    <view class="readonly-row" wx:if="{{form.cast}}">
+                        <text class="readonly-key">主演</text>
+                        <text class="readonly-val">{{form.cast}}</text>
+                    </view>
+                </view>
+            </view>
 
             <view class="modal-actions">
                 <button class="btn-ghost" bindtap="closeModal">取消</button>

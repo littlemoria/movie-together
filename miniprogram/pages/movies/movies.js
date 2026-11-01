@@ -1,14 +1,20 @@
 const { Store } = require('../../lib/store.js');
 const Domain = require('../../lib/domain.js');
-const { loadMovies, fetchSettings, saveMovie, deleteMovie, addToWishlist, removeFromWishlist } = require('../../lib/service.js');
+const { loadMovies, fetchSettings, saveMovie, deleteMovie, addToWishlist, removeFromWishlist, saveSettings } = require('../../lib/service.js');
 const { formatDate, getPosterUrl, getLargePosterUrl, getGenreNames, getGenreName, debounce } = require('../../lib/utils.js');
 const { searchMovies, getMovieDetail } = require('../../lib/tmdb.js');
+const { DEFAULT_GENRES } = require('../../lib/constants.js');
+const { Music } = require('../../lib/music.js');
 
+// 表单初始值。
+// genres 是「类型 id → 是否选中」的对象，供多选 UI 渲染与切换；
+// 保存时转回逗号分隔字符串写入 genre 字段，数据契约与网页版保持一致。
+// rating / director / cast 由 TMDB 自动带出，只读不可编辑。
 const EMPTY_FORM = {
     movie_name: '',
     watch_date: '',
     duration_minutes: '',
-    genre: '',
+    genres: {},
     created_by: '',
     rating: '',
     director: '',
@@ -16,7 +22,16 @@ const EMPTY_FORM = {
 };
 
 Page({
-    data: {
+
+    // ---------- 背景音乐 ----------
+
+    /**
+     * 首次触摸兜底：在手势的同步调用栈内解锁音频播放。
+     * 全局 wx.onTouchStart 为主触发路径，这里保证页面级触摸同样能触发。
+     */
+    onFirstTouch() {
+        Music.unlock();
+    },    data: {
         mode: 'watched',
         search: '',
         groups: [],
@@ -30,6 +45,8 @@ Page({
         saving: false,
         formError: '',
         form: { ...EMPTY_FORM },
+        genreOptions: [],
+        newGenre: '',
         tmdbKeyword: '',
         tmdbResults: [],
         tmdbLoading: false,
@@ -210,6 +227,8 @@ Page({
             editingId: null,
             formError: '',
             form: { ...EMPTY_FORM, watch_date: new Date().toISOString().split('T')[0] },
+            genreOptions: this.buildGenreOptions(),
+            newGenre: '',
             tmdbKeyword: '',
             tmdbResults: [],
         });
@@ -224,17 +243,48 @@ Page({
             formError: '',
             tmdbKeyword: '',
             tmdbResults: [],
+            genreOptions: this.buildGenreOptions(),
+            newGenre: '',
             form: {
                 movie_name: movie.movie_name,
                 watch_date: movie.watch_date,
                 duration_minutes: movie.duration_minutes === null ? '' : String(movie.duration_minutes),
-                genre: movie.genre,
+                genres: this.parseGenres(movie.genre),
                 created_by: movie.created_by,
-                rating: movie.rating === null ? '' : String(movie.rating),
+                rating: movie.rating === null || movie.rating === undefined ? '' : String(movie.rating),
                 director: movie.director,
                 cast: movie.cast,
             },
         });
+    },
+
+    /**
+     * 构建类型选项：内置类型 + 用户自定义类型（对齐网页版 renderGenreOptions）。
+     */
+    buildGenreOptions() {
+        return [...DEFAULT_GENRES, ...(Store.state.customGenres || [])];
+    },
+
+    /**
+     * 把逗号分隔的类型字符串解析为「id → true」的选中映射。
+     */
+    parseGenres(genreString) {
+        const map = {};
+        if (!genreString) return map;
+        String(genreString).split(',').filter(Boolean).forEach((id) => {
+            map[id] = true;
+        });
+        return map;
+    },
+
+    /**
+     * 把选中映射转回逗号分隔字符串（写入 genre 字段）。
+     */
+    serializeGenres(genres) {
+        if (!genres) return '';
+        return Object.keys(genres)
+            .filter((id) => genres[id])
+            .join(',');
     },
 
     closeModal() {
@@ -248,13 +298,74 @@ Page({
         this.setData({ [`form.${field}`]: e.detail.value, formError: '' });
     },
 
+    // ---------- 观看日期 ----------
+
+    onWatchDateChange(e) {
+        this.setData({ 'form.watch_date': e.detail.value, formError: '' });
+    },
+
+    // ---------- 类型多选 ----------
+
+    /**
+     * 切换某个类型的选中状态（对齐网页版 checkbox-group）。
+     */
+    toggleGenre(e) {
+        const id = e.currentTarget.dataset.id;
+        if (!id) return;
+        const genres = { ...this.data.form.genres };
+        if (genres[id]) {
+            delete genres[id];
+        } else {
+            genres[id] = true;
+        }
+        this.setData({ 'form.genres': genres, formError: '' });
+    },
+
+    onNewGenreInput(e) {
+        this.setData({ newGenre: e.detail.value });
+    },
+
+    /**
+     * 添加自定义类型：写入 Store 的 customGenres 并持久化到云端 settings，
+     * 与网页版 Utils.addCustomGenre + saveCustomGenres 行为一致。
+     */
+    async addCustomGenre() {
+        const name = (this.data.newGenre || '').trim();
+        if (!name) return;
+
+        const id = name.toLowerCase().replace(/\s+/g, '-');
+        const existing = this.buildGenreOptions();
+        if (existing.some((g) => g.id === id)) {
+            wx.showToast({ title: '类型已存在', icon: 'none' });
+            return;
+        }
+
+        // 先更新本地 Store，界面立即生效
+        const customGenres = [...(Store.state.customGenres || []), { id, name }];
+        Store.state.customGenres = customGenres;
+        Store.state.settings = { ...Store.state.settings, customGenres };
+        this.setData({ genreOptions: this.buildGenreOptions(), newGenre: '' });
+
+        // 再持久化到云端（失败不影响本次使用，下次同步会带上）
+        try {
+            const result = await saveSettings();
+            if (!result.ok) {
+                wx.showToast({ title: '类型已添加，暂未同步到云端', icon: 'none' });
+                return;
+            }
+        } catch (e) {
+            // 静默失败：本地已生效
+        }
+        wx.showToast({ title: '类型添加成功', icon: 'success' });
+    },
+
     async handleSave() {
         const { form, editingId } = this.data;
         const input = {
             movie_name: form.movie_name,
             watch_date: form.watch_date,
             duration_minutes: form.duration_minutes === '' ? null : Number(form.duration_minutes),
-            genre: form.genre,
+            genre: this.serializeGenres(form.genres),
             created_by: form.created_by,
             rating: form.rating === '' ? null : Number(form.rating),
             director: form.director,
@@ -322,7 +433,7 @@ Page({
         this.setData({
             'form.movie_name': movie.title,
             'form.watch_date': this.data.form.watch_date || new Date().toISOString().split('T')[0],
-            'form.genre': movie.genre || '',
+            'form.genres': this.mergeGenres(this.data.form.genres, movie.genre),
             'form.rating': movie.rating === null || movie.rating === undefined ? '' : String(movie.rating),
             'form.director': movie.director || '',
             'form.cast': movie.cast || '',
@@ -336,12 +447,24 @@ Page({
             this.setData({
                 'form.director': detail.director || this.data.form.director,
                 'form.cast': detail.cast || this.data.form.cast,
-                'form.genre': detail.genre || this.data.form.genre,
+                'form.genres': this.mergeGenres(this.data.form.genres, detail.genre),
                 'form.duration_minutes': detail.duration_minutes || this.data.form.duration_minutes,
             });
         } catch (e) {
             // 详情获取失败不影响主流程。
         }
+    },
+
+    /**
+     * 合并 TMDB 返回的类型到当前选中映射（保留用户已手动选中的项）。
+     */
+    mergeGenres(current, genreString) {
+        const merged = { ...current };
+        if (!genreString) return merged;
+        String(genreString).split(',').filter(Boolean).forEach((id) => {
+            merged[id] = true;
+        });
+        return merged;
     },
 
     // 加入想看清单
@@ -371,11 +494,13 @@ Page({
             formError: '',
             tmdbKeyword: '',
             tmdbResults: [],
+            genreOptions: this.buildGenreOptions(),
+            newGenre: '',
             form: {
                 movie_name: item.movie_name,
                 watch_date: new Date().toISOString().split('T')[0],
                 duration_minutes: '',
-                genre: item.genre || '',
+                genres: this.parseGenres(item.genre),
                 created_by: '',
                 rating: item.rating === null || item.rating === undefined ? '' : String(item.rating),
                 director: item.director || '',

@@ -46,11 +46,20 @@ test('曲目列表与网页版一致（7 首且含新曲）', () => {
     assert.ok(MUSIC_TRACKS.some((t) => t.name.includes('一程山路')));
 });
 
-test('init 幂等：多次调用只创建一个音频实例', () => {
+test('init 不创建音频实例（iOS 要求实例必须在用户手势栈内创建）', () => {
     created.length = 0;
     Music.audio = null;
     Music.init();
     Music.init();
+    assert.strictEqual(created.length, 0, '启动阶段不应创建音频实例');
+    assert.strictEqual(Music.volume, 30, 'init 应读取本地音量');
+});
+
+test('ensureAudio 幂等：多次调用只创建一个音频实例', () => {
+    created.length = 0;
+    Music.audio = null;
+    Music.ensureAudio();
+    Music.ensureAudio();
     assert.strictEqual(created.length, 1);
 });
 
@@ -125,7 +134,7 @@ test('loadVolume：非法存储值回落到默认值', () => {
 
 test('toggleMute 真实静音：音量置 0，取消后恢复用户音量', () => {
     Music.audio = null;
-    Music.init();
+    Music.ensureAudio();
     Music.setVolume(40);
     Music.muted = false;
 
@@ -140,7 +149,7 @@ test('toggleMute 真实静音：音量置 0，取消后恢复用户音量', () =
 
 test('静音状态下播放状态不受影响（静音 ≠ 暂停）', () => {
     Music.audio = null;
-    Music.init();
+    Music.ensureAudio();
     Music.playTrack(0);
     Music.muted = true;
 
@@ -170,10 +179,12 @@ test('音频结束后自动播下一首', () => {
 });
 
 test('armAutoPlay 在首次触摸后同步播放，且只触发一次', () => {
+    created.length = 0;
     Music.audio = null;
-    Music.init();
     Music.trackIndex = -1;
     Music.paused = true;
+    Music.muted = false;
+    Music.unlocked = false;
     Music.autoPlayArmed = false;
     Music.armAutoPlay();
     assert.ok(global.__touchHandler, '应注册触摸监听');
@@ -185,9 +196,53 @@ test('armAutoPlay 在首次触摸后同步播放，且只触发一次', () => {
     assert.strictEqual(global.__touchHandler, null, '监听应已解绑');
 });
 
+test('首次触摸时才创建音频实例（iOS 手势上下文要求）', () => {
+    created.length = 0;
+    Music.audio = null;
+    Music.trackIndex = -1;
+    Music.paused = true;
+    Music.muted = false;
+    Music.unlocked = false;
+    Music.autoPlayArmed = false;
+
+    Music.armAutoPlay();
+    assert.strictEqual(created.length, 0, '注册监听时不应创建实例');
+
+    global.__touchHandler();
+    assert.strictEqual(created.length, 1, '触摸回调内应创建实例');
+    assert.ok(Music.getState().playing, '应进入播放态');
+});
+
+test('unlock 幂等：多次调用只播放一次', () => {
+    created.length = 0;
+    Music.audio = null;
+    Music.trackIndex = -1;
+    Music.paused = true;
+    Music.muted = false;
+    Music.unlocked = false;
+
+    assert.strictEqual(Music.unlock(), true, '首次应解锁');
+    const firstIndex = Music.trackIndex;
+    assert.strictEqual(Music.unlock(), false, '重复调用应返回 false');
+    assert.strictEqual(Music.trackIndex, firstIndex, '不应重复换曲');
+    assert.strictEqual(created.length, 1, '只应有一个音频实例');
+});
+
+test('静音状态下 unlock 不自动播放', () => {
+    Music.audio = null;
+    Music.trackIndex = -1;
+    Music.paused = true;
+    Music.muted = true;
+    Music.unlocked = false;
+
+    assert.strictEqual(Music.unlock(), false, '静音时不应解锁播放');
+    assert.strictEqual(Music.trackIndex, -1, '不应选曲');
+});
+
 test('armAutoPlay 不会覆盖用户已手动选择的曲目', () => {
     Music.audio = null;
-    Music.init();
+    Music.unlocked = false;
+    Music.ensureAudio();
     Music.playTrack(2);
     Music.autoPlayArmed = false;
     Music.armAutoPlay();

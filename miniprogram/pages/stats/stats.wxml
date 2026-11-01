@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page" bindtouchstart="onFirstTouch">
     <view wx:if="{{loading}}" class="state">
         <text class="state-text">加载中…</text>
     </view>

@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page" bindtouchstart="onFirstTouch">
     <view class="summary">
         <text class="summary-value">{{unlockedCount}}/{{achievements.length}}</text>
         <text class="summary-label">已解锁成就</text>

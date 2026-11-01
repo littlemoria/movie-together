@@ -39,6 +39,17 @@ Component({
     },
 
     methods: {
+        /**
+         * 首次触摸兜底：在手势的同步调用栈内解锁音频播放。
+         *
+         * 全局 wx.onTouchStart 已作为主触发路径，但部分真机上 App 级监听
+         * 可能不触发（例如页面已处于前台、或被其它监听覆盖）。组件挂在
+         * 全部 6 个页面上，这里再补一个页面级触发点提高可靠性。
+         */
+        onFirstTouch() {
+            Music.unlock();
+        },
+
         togglePanel() {
             this.setData({ panelOpen: !this.data.panelOpen });
         },
