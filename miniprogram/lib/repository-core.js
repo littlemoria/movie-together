@@ -159,7 +159,10 @@
 
         async saveSettings(input) {
             const settings = Domain.normalizeSettings(input);
-            await this.request('/settings', {
+            // settings 表的主键不是 key，唯一约束是 settings_key_key。
+            // resolution=merge-duplicates 默认按主键判断冲突，不显式指定 on_conflict=key
+            // 会撞唯一约束返回 409，导致每次保存设置（含想看清单）都失败。
+            await this.request('/settings?on_conflict=key', {
                 method: 'POST',
                 body: { key: 'global', value: JSON.stringify(settings) },
                 prefer: 'resolution=merge-duplicates,return=minimal',

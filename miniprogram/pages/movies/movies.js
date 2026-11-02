@@ -430,11 +430,16 @@ Page({
         const movie = this.data.tmdbResults[index];
         if (!movie) return;
 
+        // 搜索结果里评分字段为 TMDB 的 vote_average，兼容两种写法
+        const pickedRating = movie.rating !== undefined && movie.rating !== null
+            ? movie.rating
+            : movie.vote_average;
+
         this.setData({
             'form.movie_name': movie.title,
             'form.watch_date': this.data.form.watch_date || new Date().toISOString().split('T')[0],
             'form.genres': this.mergeGenres(this.data.form.genres, movie.genre),
-            'form.rating': movie.rating === null || movie.rating === undefined ? '' : String(movie.rating),
+            'form.rating': pickedRating === null || pickedRating === undefined ? '' : String(pickedRating),
             'form.director': movie.director || '',
             'form.cast': movie.cast || '',
             tmdbResults: [],
@@ -444,12 +449,20 @@ Page({
         // 补充导演、主演与准确时长。
         try {
             const detail = await getMovieDetail(movie.id);
-            this.setData({
+            // TMDB runtime 已是分钟数，仅在拿到有效正数时覆盖用户可能已手填的值。
+            const detailDuration = Number(detail.duration_minutes);
+            const patch = {
                 'form.director': detail.director || this.data.form.director,
                 'form.cast': detail.cast || this.data.form.cast,
                 'form.genres': this.mergeGenres(this.data.form.genres, detail.genre),
-                'form.duration_minutes': detail.duration_minutes || this.data.form.duration_minutes,
-            });
+            };
+            if (Number.isFinite(detailDuration) && detailDuration > 0) {
+                patch['form.duration_minutes'] = String(Math.round(detailDuration));
+            }
+            if (!this.data.form.rating && detail.rating) {
+                patch['form.rating'] = String(detail.rating);
+            }
+            this.setData(patch);
         } catch (e) {
             // 详情获取失败不影响主流程。
         }

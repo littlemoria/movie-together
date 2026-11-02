@@ -52,7 +52,11 @@ async function searchMovies(keyword) {
 }
 
 /**
- * 获取电影详情（补齐导演与主演）。
+ * 获取电影详情（补齐导演、主演与时长）。
+ *
+ * 注意：TMDB 的 runtime 字段本身就以「分钟」为单位，直接取整写入
+ * duration_minutes 即可；此前误按小时换算（runtime / 60），
+ * 会让表单里的「时长（分钟）」显示成个位数。
  */
 async function getMovieDetail(tmdbId) {
     const data = await requestTmdb(
@@ -65,7 +69,8 @@ async function getMovieDetail(tmdbId) {
         director: director ? director.name : '',
         cast,
         genre: mapTmdbGenres((data.genres || []).map((g) => g.id), TMDB_GENRE_MAP),
-        duration_minutes: data.runtime ? Math.round(data.runtime / 60) : null,
+        duration_minutes: data.runtime ? Math.round(data.runtime) : null,
+        rating: data.vote_average ? Math.round(data.vote_average * 10) / 10 : null,
         overview: data.overview || '',
     };
 }

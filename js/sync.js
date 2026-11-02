@@ -61,11 +61,18 @@ const Sync = {
       const lastSync = await Cache.getLastSyncTime();
       console.log('[Sync] Last sync:', lastSync);
       
+      // 先刷新云端设置：想看清单随 settings 同步，必须与 movies 一起更新，
+      // 否则另一端的想看变更在本次同步中不可见。
+      await API.fetchCloudSettings().catch(error => {
+        console.warn('[Sync] 设置同步失败（不影响电影列表）:', error && (error.code || error.message));
+      });
+
       // 获取云端数据
       const movies = await API.fetchAllMovies();
       
       if (movies && movies.length > 0) {
         await Cache.saveMovies(movies);
+        // Store.setMovies 会保留当前想看清单，不会被 movies 表刷新清空
         if (typeof Store !== 'undefined') {
           Store.setMovies(movies);
         } else {
@@ -236,7 +243,12 @@ const Sync = {
     try {
       const movies = await Cache.getMovies();
       if (movies && movies.length > 0) {
-        appState.movies = movies;
+        // 统一走 Store，保留想看清单并完成字段归一化
+        if (typeof Store !== 'undefined') {
+          Store.setMovies(movies);
+        } else {
+          appState.movies = movies;
+        }
         console.log('[Sync] Loaded', movies.length, 'movies from cache');
         return movies;
       }

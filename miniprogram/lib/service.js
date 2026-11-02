@@ -44,9 +44,10 @@ async function fetchSettings() {
 
 /**
  * 组装要上传的设置：云端配置 + 本地状态（想看清单、成就、自定义类型）。
+ * @param {Object} [base] - 作为底稿的云端设置，缺省读 Store 中的快照
  */
-function buildSettings() {
-    const current = Store.state.settings || Domain.normalizeSettings();
+function buildSettings(base) {
+    const current = base || Store.state.settings || Domain.normalizeSettings();
     return Domain.normalizeSettings({
         ...current,
         customGenres: Store.state.customGenres,
@@ -57,14 +58,27 @@ function buildSettings() {
 
 /**
  * 保存设置到云端。
+ *
+ * 若云端设置尚未读取过，先读一次再写：否则会把默认的背景/主题写入云端，
+ * 并用本地可能为空的想看清单覆盖另一端的记录。
  */
 async function saveSettings() {
     if (!Store.isAuthenticated()) {
         return { ok: false, status: 'failed', error: new DataError('请先登录后再同步设置', 'AUTH_REQUIRED') };
     }
+
+    let base = Store.state.settingsHydrated ? Store.state.settings : null;
+    if (!base) {
+        try {
+            base = await getRepository().getSettings();
+        } catch (error) {
+            return { ok: false, status: 'failed', error };
+        }
+    }
+
     try {
         const repo = getRepository();
-        const settings = await repo.saveSettings(buildSettings());
+        const settings = await repo.saveSettings(buildSettings(base));
         Store.setSettings(settings);
         writeLocal(STORAGE_KEYS.CONFIG, settings);
         writeLocal(STORAGE_KEYS.WISHLIST, settings.wishlist);
@@ -78,14 +92,22 @@ async function saveSettings() {
 // ---------- 观影记录 ----------
 
 /**
- * 拉取云端记录，并合并本地想看清单（云端已看为权威，想看保留）。
+ * 拉取云端记录，并合并想看清单。
+ *
+ * 已看记录来自 movies 表；想看清单只存在于云端 settings，
+ * 因此以「已读取的云端设置」为准，未读取时才回退本地缓存，
+ * 避免把本地过期的清单当成权威数据覆盖云端。
  */
 async function loadMovies() {
     if (!Store.isAuthenticated()) return [];
     const repo = getRepository();
     const cloudMovies = await repo.listMovies();
     const localWishlist = readLocal(STORAGE_KEYS.WISHLIST, []);
-    Store.mergeData(cloudMovies, localWishlist);
+    const wishlistItems = Store.state.settingsHydrated
+        ? Store.state.settings.wishlist
+        : localWishlist;
+    Store.mergeData(cloudMovies, wishlistItems);
+    writeLocal(STORAGE_KEYS.WISHLIST, Store.getWishlist());
     return Store.state.movies;
 }
 
@@ -137,15 +159,20 @@ async function addToWishlist(tmdbMovie) {
     const existsWatched = Store.getWatched().find((m) => m.tmdb_id === tmdbMovie.id);
     if (existsWatched) return { ok: false, message: '这部电影已经在已看列表中' };
 
+    // 搜索结果使用 TMDB 的 vote_average，两个字段名都兼容
+    const rawRating = tmdbMovie.rating !== undefined && tmdbMovie.rating !== null
+        ? tmdbMovie.rating
+        : tmdbMovie.vote_average;
+
     const item = {
         id: `wl_${Date.now()}`,
         movie_name: tmdbMovie.title,
         tmdb_id: tmdbMovie.id,
         poster_path: tmdbMovie.poster_path || null,
         year: tmdbMovie.year || '',
-        rating: tmdbMovie.rating === null || tmdbMovie.rating === undefined
+        rating: rawRating === null || rawRating === undefined
             ? null
-            : Math.round(tmdbMovie.rating * 10) / 10,
+            : Math.round(rawRating * 10) / 10,
         added_at: new Date().toISOString(),
         watch_date: new Date().toISOString().split('T')[0],
         duration_minutes: null,

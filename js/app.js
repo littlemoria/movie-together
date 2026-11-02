@@ -39,25 +39,7 @@ const App = {
     await API.fetchCloudSettingsWithRetry(3);
     
     // 应用云端主题
-    this.applyTheme(config.theme);
-    
-    // 应用云端背景设置
-    if (cloudSettings.bgImage || cloudSettings.bgGif || cloudSettings.bgVideo || cloudSettings.cardOpacity !== 100) {
-      config.bgType = cloudSettings.bgType || 'image';
-      config.bgImage = cloudSettings.bgImage || '';
-      config.bgGif = cloudSettings.bgGif || '';
-      config.bgVideo = cloudSettings.bgVideo || '';
-      config.bgMaskOpacity = cloudSettings.bgMaskOpacity;
-      config.cardOpacity = cloudSettings.cardOpacity;
-      
-      Components.updateBgInputsFromConfig();
-      this.applyBackground();
-    } else if (config.bgImage || config.bgGif || config.bgVideo) {
-      Components.updateBgInputsFromConfig();
-      this.applyBackground();
-    }
-    
-    Components.applyOpacitySettings();
+    this.applyCloudAppearance();
     
     // 设置默认日期
     const dateInput = document.getElementById('watch-date');
@@ -246,6 +228,11 @@ const App = {
 
   /**
    * 加载电影数据
+   *
+   * 数据来源分两类：
+   * - 已看记录：movies 表（云端权威，失败时回退本地缓存）
+   * - 想看清单：settings.wishlist（云端权威，失败时回退 localStorage）
+   * 两者统一进 Store，保证「想看」不会被 movies 表刷新清空。
    */
   async loadMovies() {
     let cachedMovies = [];
@@ -256,73 +243,136 @@ const App = {
         Components.renderHome();
       }
     }
-    
+
+    let cloudMovies = [];
     try {
-      const cloudMovies = await API.fetchMovies();
-      // 确保所有电影都有 status 字段（兼容旧数据）
-      appState.movies = cloudMovies.map(m => ({
-        ...m,
-        status: m.status || 'watched'
-      }));
-      
-      // 合并本地缓存中云端没有的电影（临时ID或_pending标记的本地电影）
-      const cloudIds = new Set(cloudMovies.map(m => m.id));
-      const localOnlyMovies = cachedMovies.filter(m => 
-        !cloudIds.has(m.id) && (m.id.toString().startsWith('temp_') || m._pending)
-      );
-      if (localOnlyMovies.length > 0) {
-        console.log('[App] Merging', localOnlyMovies.length, 'local-only movies');
-        appState.movies = [...localOnlyMovies, ...appState.movies];
-      }
+      cloudMovies = await API.fetchMovies();
     } catch (err) {
       console.error('加载数据失败:', err);
-      // 使用缓存数据
-      if (cachedMovies.length > 0) {
-        appState.movies = cachedMovies.map(m => ({
-          ...m,
-          status: m.status || 'watched'
-        }));
-      } else {
-        const cached = localStorage.getItem(Config.STORAGE_KEYS.MOVIES);
-        if (cached) {
-          try {
-            appState.movies = JSON.parse(cached);
-            appState.movies = appState.movies.map(m => ({
-              ...m,
-              status: m.status || 'watched'
-            }));
-          } catch (e) {
-            appState.movies = [];
-          }
-        }
-      }
+      cloudMovies = cachedMovies.length > 0 ? cachedMovies : this.readLocalMovies();
     }
 
-    // 加载 Wish List 并合并到 movies（统一数据源，status='wishlist'）
-    const savedWishlist = localStorage.getItem(Config.STORAGE_KEYS.WISHLIST);
-    if (savedWishlist) {
+    // 合并本地缓存中云端没有的电影（临时ID或_pending标记的本地电影）
+    const knownIds = new Set(cloudMovies.map(m => String(m.id)));
+    const localOnlyMovies = cachedMovies.filter(m =>
+      !knownIds.has(String(m.id)) && (String(m.id).startsWith('temp_') || m._pending)
+    );
+    if (localOnlyMovies.length > 0) {
+      console.log('[App] Merging', localOnlyMovies.length, 'local-only movies');
+    }
+
+    // 想看清单：云端设置已读取时以 Store 为准（含云端合并结果），否则回退本地缓存。
+    const wishlist = Store.state.settingsHydrated ? Store.getWishlist() : this.readLocalWishlist();
+
+    Store.mergeData([...localOnlyMovies, ...cloudMovies], wishlist);
+    this.persistWishlistCache();
+  },
+
+  /**
+   * 读取本地已看记录缓存（IndexedDB 不可用时的兜底）。
+   * @returns {Array}
+   */
+  readLocalMovies() {
+    try {
+      const raw = localStorage.getItem(Config.STORAGE_KEYS.MOVIES);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  /**
+   * 读取本地想看清单缓存。
+   * @returns {Array}
+   */
+  readLocalWishlist() {
+    try {
+      const raw = localStorage.getItem(Config.STORAGE_KEYS.WISHLIST);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      // 旧版本缓存不写入 status，这里统一标注为想看，避免被当成已看记录。
+      return parsed.map(item => ({ ...item, status: MovieDomain.MOVIE_STATUS.WISHLIST }));
+    } catch (e) {
+      return [];
+    }
+  },
+
+  /**
+   * 把当前想看清单写入本地缓存（离线时仍可展示）。
+   */
+  persistWishlistCache() {
+    try {
+      localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(Store.getWishlist()));
+    } catch (e) {
+      // 本地存储不可用时忽略，云端仍为权威数据源。
+    }
+  },
+
+  /**
+   * 应用云端外观设置（主题 / 背景 / 透明度）。
+   */
+  applyCloudAppearance() {
+    this.applyTheme(config.theme);
+
+    if (cloudSettings.bgImage || cloudSettings.bgGif || cloudSettings.bgVideo || cloudSettings.cardOpacity !== 100) {
+      config.bgType = cloudSettings.bgType || 'image';
+      config.bgImage = cloudSettings.bgImage || '';
+      config.bgGif = cloudSettings.bgGif || '';
+      config.bgVideo = cloudSettings.bgVideo || '';
+      config.bgMaskOpacity = cloudSettings.bgMaskOpacity;
+      config.cardOpacity = cloudSettings.cardOpacity;
+
+      Components.updateBgInputsFromConfig();
+      this.applyBackground();
+    } else if (config.bgImage || config.bgGif || config.bgVideo) {
+      Components.updateBgInputsFromConfig();
+      this.applyBackground();
+    }
+
+    Components.applyOpacitySettings();
+  },
+
+  /**
+   * 重新渲染所有列表视图。
+   */
+  refreshAllViews() {
+    Components.renderHome();
+    Components.renderMovies();
+    Components.renderAchievements();
+    Components.renderStats();
+    this.updateLoginStatus();
+  },
+
+  /**
+   * 登录成功后刷新数据。
+   *
+   * 服务端 RLS 只允许登录用户读取 movies / settings，未登录时的首屏数据为空。
+   * 因此拿到会话后必须重新拉取云端设置与电影列表并重绘，否则需要手动刷新页面。
+   * 并发/重复调用会被合并，避免 Supabase 登录事件与登录回调各刷一次。
+   */
+  async reloadAfterAuth() {
+    if (this._authReloadPromise) return this._authReloadPromise;
+    if (Date.now() - (this._authReloadedAt || 0) < 1500) return;
+
+    this._authReloadPromise = (async () => {
       try {
-        const wishlistItems = JSON.parse(savedWishlist);
-        wishlistItems.forEach(w => {
-          // 避免重复：如果 tmdb_id 已在 movies 中存在（已看），跳过
-          if (w.tmdb_id && appState.movies.find(m => m.tmdb_id === w.tmdb_id && m.status !== 'wishlist')) {
-            return;
-          }
-          appState.movies.push({
-            ...w,
-            watch_date: w.added_at ? w.added_at.split('T')[0] : new Date().toISOString().split('T')[0],
-            duration_minutes: null,
-            genre: '',
-            created_by: '',
-            director: '',
-            cast: '',
-            status: 'wishlist'
-          });
-        });
-      } catch (e) { /* ignore parse errors */ }
-    }
+        await API.fetchCloudSettingsWithRetry(3);
+        this.applyCloudAppearance();
+        Components.loadUnlockedAchievements();
+        await this.loadMovies();
+        this.refreshAllViews();
+        Logger.info('App', '登录后已刷新数据');
+      } catch (err) {
+        Logger.error('App', '登录后刷新数据失败:', err && err.message);
+        Utils.showToast('数据刷新失败，请手动刷新页面', 'warning');
+      } finally {
+        this._authReloadedAt = Date.now();
+        this._authReloadPromise = null;
+      }
+    })();
 
-    appState._dataVersion++;
+    return this._authReloadPromise;
   },
 
   /**
@@ -454,7 +504,7 @@ const App = {
     if (tmdbId) {
       const wishlistDuplicate = appState.movies.find(m => m.tmdb_id === tmdbId && m.status === 'wishlist');
       if (wishlistDuplicate) {
-        appState.movies = appState.movies.filter(m => m.id !== wishlistDuplicate.id);
+        Store.removeMovie(wishlistDuplicate.id);
         this.saveWishlist();
       }
     }
@@ -979,7 +1029,9 @@ const App = {
         }
 
         // Step 1: 先保存新电影到云端（保证数据不丢失）
-        appState.movies = [];
+        // 替换导入只处理「已看」记录，想看清单不属于 CSV 数据，需原样保留。
+        const preservedWishlist = Store.getWishlist();
+        appState.movies = [...preservedWishlist];
         let saveFailed = false;
         for (let i = 0; i < imported.length; i++) {
           const movie = imported[i];
@@ -1031,8 +1083,8 @@ const App = {
             // 保留本地回退数据（保存到云端失败但已存本地的电影，其 ID 为数字）
             const localFallback = appState.movies.filter(m => typeof m.id === 'number');
 
-            // 以云端数据为权威状态，补上本地回退
-            appState.movies = [...newCloudMovies, ...localFallback];
+            // 以云端数据为权威状态，补上本地回退与替换前保留的想看清单
+            appState.movies = [...newCloudMovies, ...localFallback, ...preservedWishlist];
           }
 
           if (saveFailed && newCloudMovies.length > 0) {
@@ -1043,15 +1095,16 @@ const App = {
           Utils.showToast('同步云端数据时出错，请刷新页面检查云端是否有残留旧记录', 'warning');
         }
 
-        // Step 3: 更新缓存
+        // Step 3: 更新缓存（缓存与 movies 表保持一致，只存已看记录）
         if (typeof Cache !== 'undefined') {
           await Cache.clearMovies();
-          await Cache.saveMovies(appState.movies);
+          await Cache.saveMovies(Store.getWatched());
         }
       }
 
       // 统一后续处理
-      localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(appState.movies));
+      localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(Store.getWatched()));
+      this.persistWishlistCache();
 
       Components.renderHome();
       Components.renderMovies();
@@ -1353,23 +1406,15 @@ const App = {
   },
 
   /**
-   * 保存 Wish List（从 movies 统一数组提取，写入 localStorage + 云端）
+   * 保存 Wish List（以 Store 中的想看项为准，写入 localStorage + 云端）
    */
   saveWishlist() {
-    const wishlistItems = appState.movies
-      .filter(m => m.status === 'wishlist')
-      .map(m => ({
-        id: m.id,
-        movie_name: m.movie_name,
-        tmdb_id: m.tmdb_id,
-        poster_path: m.poster_path,
-        year: m.year,
-        rating: m.rating,
-        added_at: m.added_at
-      }));
+    // 保留完整字段（含 genre / director / cast / status），与小程序端写入结构一致，
+    // 避免两端往返时丢失元数据。
+    const wishlistItems = Store.getWishlist();
     localStorage.setItem(Config.STORAGE_KEYS.WISHLIST, JSON.stringify(wishlistItems));
+    Store.touchData();
     if (typeof API !== 'undefined') API.saveCloudSettings();
-    appState._dataVersion++;
   },
 
   /**
@@ -1411,7 +1456,7 @@ const App = {
       status: 'wishlist'
     };
 
-    appState.movies.push(item);
+    Store.upsertMovie(item, { prepend: false });
     this.saveWishlist();
     Utils.showToast(`「${item.movie_name}」已加入想看`, 'success');
   },
@@ -1421,11 +1466,11 @@ const App = {
    * @param {string} id - Wish List 项 ID
    */
   wishlistToWatched(id) {
-    const item = appState.movies.find(m => m.id === id && m.status === 'wishlist');
+    const item = appState.movies.find(m => m.status === 'wishlist' && String(m.id) === String(id));
     if (!item) return;
 
     // 从 movies 中移除（会由 handleMovieSubmit 以 status='watched' 重新添加）
-    appState.movies = appState.movies.filter(m => m.id !== id);
+    Store.removeMovie(id);
     this.saveWishlist();
 
     if (item.tmdb_id) {
@@ -1448,8 +1493,8 @@ const App = {
    * @param {string} id - Wish List 项 ID
    */
   removeFromWishlist(id) {
-    const item = appState.movies.find(m => m.id === id && m.status === 'wishlist');
-    appState.movies = appState.movies.filter(m => m.id !== id);
+    const item = appState.movies.find(m => m.status === 'wishlist' && String(m.id) === String(id));
+    Store.removeMovie(id);
     this.saveWishlist();
     Components.renderMovies();
     if (item) {

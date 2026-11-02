@@ -48,3 +48,74 @@ test('离线新增与批量导入遵守 prepend 追加语义并保留待同步�
   assert.deepEqual(store.state.movies.map(movie => movie.id), ['b', 'a', 'temp_x']);
   assert.equal(store.state.movies[2]._pending, true);
 });
+
+// ---------- 想看清单：跨端同步的集合不变式 ----------
+
+const WISHLIST_ITEM = {
+  id: 'wl_1',
+  movie_name: '想看一',
+  tmdb_id: 11,
+  added_at: '2026-10-01T00:00:00.000Z'
+};
+
+test('settings 携带的想看清单会合并进 movies，并且标记为已读取云端设置', () => {
+  const store = createStore();
+  assert.equal(store.state.settingsHydrated, false);
+
+  store.setSettings({ wishlist: [WISHLIST_ITEM] });
+
+  assert.equal(store.state.settingsHydrated, true);
+  assert.deepEqual(store.getWishlist().map(movie => movie.id), ['wl_1']);
+  assert.equal(store.getWishlist()[0].status, 'wishlist');
+  assert.equal(store.getWishlist()[0].watch_date, '2026-10-01', '缺少 watch_date 时回退 added_at');
+});
+
+test('movies 表刷新不会清空想看清单', () => {
+  const store = createStore();
+  store.setSettings({ wishlist: [WISHLIST_ITEM] });
+
+  // 模拟定时同步：云端 movies 表只含已看记录
+  store.setMovies([
+    { id: 'm1', movie_name: '已看一', watch_date: '2026-09-01' },
+    { id: 'm2', movie_name: '已看二', watch_date: '2026-09-02' }
+  ]);
+
+  assert.deepEqual(store.getWatched().map(movie => movie.id).sort(), ['m1', 'm2']);
+  assert.deepEqual(store.getWishlist().map(movie => movie.id), ['wl_1'], '想看项必须保留');
+});
+
+test('合并云端数据时，已看过的同 tmdb_id 想看项会被剔除', () => {
+  const store = createStore();
+  store.setSettings({ wishlist: [WISHLIST_ITEM, { ...WISHLIST_ITEM, id: 'wl_2', tmdb_id: 12 }] });
+
+  store.mergeData(
+    [{ id: 'm1', movie_name: '已看一', watch_date: '2026-09-01', tmdb_id: 12 }],
+    store.getWishlist()
+  );
+
+  assert.deepEqual(store.getWishlist().map(movie => movie.id), ['wl_1']);
+});
+
+test('setWishlist 以传入清单为准，并保留已看记录', () => {
+  const store = createStore();
+  store.setMovies([{ id: 'm1', movie_name: '已看一', watch_date: '2026-09-01' }]);
+
+  store.setWishlist([WISHLIST_ITEM]);
+  assert.deepEqual(store.getWishlist().map(movie => movie.id), ['wl_1']);
+  assert.equal(store.getWatched().length, 1);
+
+  // 另一端的清单只剩一项时，本地旧的想看项应被替换掉
+  store.setWishlist([{ ...WISHLIST_ITEM, id: 'wl_9', tmdb_id: 99 }]);
+  assert.deepEqual(store.getWishlist().map(movie => movie.id), ['wl_9']);
+});
+
+test('登出后清空私有数据并重置设置读取标记', () => {
+  const store = createStore();
+  store.setSettings({ wishlist: [WISHLIST_ITEM], theme: 'dark' });
+  store.setSession(null);
+  store.resetPrivateData();
+
+  assert.deepEqual(store.state.movies, []);
+  assert.equal(store.state.settingsHydrated, false);
+  assert.equal(store.state.settings.theme, 'light');
+});

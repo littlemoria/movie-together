@@ -142,6 +142,8 @@ const API = {
     const settings = await this.ensureRepository().getSettings();
     Object.assign(cloudSettings, settings);
     config.theme = settings.theme;
+    // 通过 Store 落地设置：想看清单会随之合并进 movies（单一数据源）。
+    Store.setSettings(settings);
     appState.customGenres = settings.customGenres;
     appState.unlockedAchievements = settings.unlockedAchievements;
     localStorage.setItem(Config.STORAGE_KEYS.CONFIG, JSON.stringify(config));
@@ -156,14 +158,50 @@ const API = {
       ...cloudSettings,
       theme: config.theme,
       customGenres: appState.customGenres,
-      wishlist: appState.movies.filter(movie => movie.status === MovieDomain.MOVIE_STATUS.WISHLIST),
+      // 想看清单以 Store 为准（与 movies 同一容器，但不会被 movies 表刷新清空）。
+      wishlist: Store.getWishlist(),
       unlockedAchievements: appState.unlockedAchievements
     });
+  },
+
+  /**
+   * 确保云端设置已读取过一次。
+   * 未读取就回写会把空清单/默认值覆盖到云端，导致另一端的想看清单被抹掉。
+   * 读取时会保留本地尚未上传的想看项，避免刚加入的条目被云端快照覆盖。
+   */
+  async ensureSettingsHydrated() {
+    if (Store.state.settingsHydrated) return true;
+
+    const pendingWishlist = Store.getWishlist();
+    try {
+      await this.fetchCloudSettings();
+    } catch (error) {
+      console.error('[API] 云端设置读取失败，暂不回写:', error.code || error.message);
+      return false;
+    }
+    if (!Store.state.settingsHydrated) return false;
+
+    if (pendingWishlist.length > 0) {
+      const merged = [...Store.getWishlist()];
+      const knownIds = new Set(merged.map(movie => String(movie.id)));
+      pendingWishlist.forEach(movie => {
+        if (!knownIds.has(String(movie.id))) merged.push(movie);
+      });
+      Store.setWishlist(merged);
+    }
+    return true;
   },
 
   async saveCloudSettings() {
     if (!Store.isAuthenticated()) {
       return { ok: false, status: 'failed', error: new DataError('请先登录后再同步设置', 'AUTH_REQUIRED') };
+    }
+    if (!(await this.ensureSettingsHydrated())) {
+      return {
+        ok: false,
+        status: 'failed',
+        error: new DataError('云端设置暂不可用，本次未同步', 'SETTINGS_NOT_READY')
+      };
     }
     try {
       const settings = await this.ensureRepository().saveSettings(this.buildCloudSettings());

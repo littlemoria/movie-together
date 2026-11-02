@@ -29,9 +29,31 @@ const Auth = {
     this.refreshUI();
 
     API.client.auth.onAuthStateChange((_event, session) => {
+      const wasAuthenticated = Store.isAuthenticated();
       Store.setSession(session);
       if (!session) Store.resetPrivateData();
       this.refreshUI();
+
+      // 由未登录切换为已登录时（含首次登录、会话恢复、刷新令牌后重新登录），
+      // 需要重新拉取受 RLS 保护的云端数据，否则页面仍是空列表。
+      // 回调执行时 supabase-js v2 仍持有认证锁，内部再取 session 会死锁，
+      // 因此延后一拍再发起请求。
+      if (!wasAuthenticated && Store.isAuthenticated()) {
+        setTimeout(() => this.reloadAppData(), 0);
+      }
+    });
+  },
+
+  /**
+   * 通知主应用在登录态建立后重新拉取数据。
+   * 重活交给 App，认证模块只负责触发，避免循环依赖。
+   */
+  reloadAppData() {
+    if (typeof App === 'undefined' || typeof App.reloadAfterAuth !== 'function') {
+      return Promise.resolve();
+    }
+    return App.reloadAfterAuth().catch(error => {
+      console.error('[Auth] 登录后刷新数据失败:', error && error.message);
     });
   },
 
@@ -64,6 +86,8 @@ const Auth = {
       Store.setSession(data.session);
       Utils.showToast('登录成功！', 'success');
       this.refreshUI();
+      // 等待数据刷新完成，登录后立即可见电影列表与想看清单
+      await this.reloadAppData();
       return true;
     } catch (e) {
       console.error('登录异常:', e);

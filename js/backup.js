@@ -155,9 +155,16 @@ const Backup = {
    */
   async restore(movies, toCloud = true) {
     try {
-      appState.movies = movies;
+      // 恢复的是观影记录，想看清单不属于备份内容，需原样保留
+      if (typeof Store !== 'undefined') {
+        Store.setMovies(movies);
+      } else {
+        appState.movies = movies;
+      }
 
-      localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(movies));
+      const watchedOnly = (Array.isArray(movies) ? movies : [])
+        .filter(movie => movie && movie.status !== MovieDomain.MOVIE_STATUS.WISHLIST);
+      localStorage.setItem(Config.STORAGE_KEYS.MOVIES, JSON.stringify(watchedOnly));
 
       if (toCloud && navigator.onLine) {
         Utils.showToast('正在同步到云端...', 'info');

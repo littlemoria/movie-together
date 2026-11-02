@@ -28,6 +28,8 @@
       movieListMode: 'watched',
       unlockedAchievements: [],
       settings: Domain.normalizeSettings(),
+      // 云端 settings 是否已成功读取（未读取时不能回写，否则会用空清单覆盖云端想看）
+      settingsHydrated: false,
       _dataVersion: 0
     };
 
@@ -45,7 +47,11 @@
       const watchedOnly = state.movies.filter(
         (movie) => movie.status !== Domain.MOVIE_STATUS.WISHLIST
       );
-      state.movies = Domain.mergeMovies(watchedOnly, items, []);
+      // 传入的清单可能来自旧版本本地缓存（没有 status 字段），统一标注为想看。
+      const normalized = (Array.isArray(items) ? items : []).map((item) =>
+        Domain.normalizeMovie({ ...item, status: Domain.MOVIE_STATUS.WISHLIST })
+      );
+      state.movies = Domain.mergeMovies(watchedOnly, normalized, []);
     }
 
     return {
@@ -103,6 +109,7 @@
         state.settings = Domain.normalizeSettings(settings);
         state.customGenres = state.settings.customGenres;
         state.unlockedAchievements = state.settings.unlockedAchievements;
+        state.settingsHydrated = true;
         // 云端设置携带想看清单，需要同步进 movies 以便统一展示。
         applyWishlist(state.settings.wishlist);
         touchData();
@@ -118,6 +125,7 @@
         state.unlockedAchievements = [];
         state.settings = Domain.normalizeSettings();
         state.customGenres = [];
+        state.settingsHydrated = false;
         touchData();
       },
       touchData
